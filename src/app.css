@@ -1,0 +1,127 @@
+:root {
+  color-scheme: light dark;
+
+  --font: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-l: 12px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 150ms;
+  --slow: 220ms;
+
+  --accent: #0a6cff;
+  --accent-soft: rgba(10, 108, 255, 0.13);
+  --accent-soft-strong: rgba(10, 108, 255, 0.2);
+  --folder: #3b9cf5;
+
+  --text: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #a1a1a6;
+  --surface: #ffffff;
+  --window: #ececef;
+  --sidebar-tint: rgba(255, 255, 255, 0.35);
+  --field: rgba(0, 0, 0, 0.045);
+  --field-focus: #ffffff;
+  --hover: rgba(0, 0, 0, 0.055);
+  --active: rgba(0, 0, 0, 0.09);
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 2px 12px rgba(0, 0, 0, 0.06);
+  --danger: #e5484d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #3b8eff;
+    --accent-soft: rgba(59, 142, 255, 0.2);
+    --accent-soft-strong: rgba(59, 142, 255, 0.3);
+    --folder: #4aa8ff;
+
+    --text: #f5f5f7;
+    --text-2: #a1a1a6;
+    --text-3: #6e6e73;
+    --surface: #1f1f22;
+    --window: #2a2a2e;
+    --sidebar-tint: rgba(40, 40, 44, 0.3);
+    --field: rgba(255, 255, 255, 0.07);
+    --field-focus: #2c2c30;
+    --hover: rgba(255, 255, 255, 0.07);
+    --active: rgba(255, 255, 255, 0.11);
+    --border: rgba(255, 255, 255, 0.09);
+    --shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 2px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text);
+  /* Deckend, solange Mica nicht bestätigt ist (Windows 10, Browser). */
+  background: var(--window);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Windows 11: Fenster ist transparent, Mica scheint durch. */
+:root[data-material='mica'] body {
+  background: transparent;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--active);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
