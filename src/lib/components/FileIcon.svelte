@@ -2,10 +2,29 @@
   import { CornerUpRight, File } from '@lucide/svelte';
   import type { Entry } from '../api';
   import { extensionBadge, fileCategory } from '../filetypes';
+  import { isCloudPlaceholder, shellImageUrl } from '../images';
+  import { joinPath } from '../paths';
 
-  let { entry }: { entry: Entry } = $props();
+  let { entry, dir }: { entry: Entry; dir: string } = $props();
 
   const badge = $derived(entry.isDir ? '' : extensionBadge(entry.name));
+
+  // Windows-Icon bzw. Thumbnail der Datei. Cloud-Platzhalter bleiben beim
+  // gezeichneten Symbol, damit nichts heruntergeladen wird.
+  const imageUrl = $derived(
+    entry.isDir || isCloudPlaceholder(entry.attributes) || !dir
+      ? null
+      : shellImageUrl(joinPath(dir, entry.name), 32, entry.modifiedMs),
+  );
+
+  let image = $state<HTMLImageElement>();
+  let loadedUrl = $state<string | null>(null);
+  const loaded = $derived(imageUrl !== null && loadedUrl === imageUrl);
+
+  // Aus dem Cache kann das Bild schon fertig sein, bevor onload feuert.
+  $effect(() => {
+    if (image?.complete && image.naturalWidth > 0) loadedUrl = imageUrl;
+  });
 </script>
 
 {#if entry.isDir}
@@ -18,10 +37,25 @@
       <span class="link"><CornerUpRight size={9} strokeWidth={2.6} /></span>
     {/if}
   </span>
-{:else if badge}
-  <span class="ft" style:--c="var(--t-{fileCategory(entry.name)})">{badge}</span>
 {:else}
-  <span class="ft plain"><File size={14} strokeWidth={1.7} /></span>
+  <span class="fi" class:loaded>
+    {#if badge}
+      <span class="ft" style:--c="var(--t-{fileCategory(entry.name)})">{badge}</span>
+    {:else}
+      <span class="ft plain"><File size={14} strokeWidth={1.7} /></span>
+    {/if}
+    {#if imageUrl}
+      <img
+        bind:this={image}
+        src={imageUrl}
+        alt=""
+        decoding="async"
+        draggable="false"
+        onload={() => (loadedUrl = imageUrl)}
+        onerror={() => (loadedUrl = null)}
+      />
+    {/if}
+  </span>
 {/if}
 
 <style>
@@ -51,6 +85,40 @@
     background: var(--surface);
     color: var(--accent);
     box-shadow: var(--shadow-sm);
+  }
+
+  .fi {
+    position: relative;
+    flex: none;
+    width: 30px;
+    height: 22px;
+    margin: 0 -3px;
+    display: block;
+  }
+
+  .fi .ft {
+    margin: 0;
+    transition: opacity var(--t-hover);
+  }
+
+  .fi.loaded .ft {
+    opacity: 0;
+  }
+
+  .fi img {
+    position: absolute;
+    left: 3px;
+    top: -1px;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity var(--t-hover);
+    pointer-events: none;
+  }
+
+  .fi.loaded img {
+    opacity: 1;
   }
 
   .ft {

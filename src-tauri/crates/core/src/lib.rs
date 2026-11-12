@@ -5,10 +5,14 @@
 //! (`listing`). Windows-API-Aufrufe sind in `listing::win` gekapselt.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod attrs;
 pub mod error;
+pub mod exec;
+pub mod imaging;
 pub mod listing;
 pub mod ops;
 pub mod path;
+pub mod preview;
 pub mod watch;
 pub mod winerr;
 

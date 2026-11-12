@@ -2,7 +2,7 @@ import type { Api } from './types';
 
 export * from './types';
 
-const inTauri = '__TAURI_INTERNALS__' in window;
+export const inTauri = '__TAURI_INTERNALS__' in window;
 
 let instance: Promise<Api> | undefined;
 

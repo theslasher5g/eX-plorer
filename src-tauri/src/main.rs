@@ -6,8 +6,10 @@ compile_error!("eX-plorer unterstützt ausschließlich Windows 10/11.");
 
 mod commands;
 mod error;
+mod protocol;
 mod shell;
 mod state;
+mod workers;
 
 use std::sync::Mutex;
 
@@ -16,6 +18,9 @@ use tauri::{Emitter, Manager};
 
 fn main() {
     let result = tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol(protocol::SCHEME, |_ctx, request, responder| {
+            protocol::handle(&request, responder);
+        })
         .setup(|app| {
             let material = app
                 .get_webview_window("main")
@@ -44,6 +49,11 @@ fn main() {
             commands::ops::paste,
             commands::ops::start_drag,
             commands::watch::watch_dirs,
+            commands::preview::preview_info,
+            commands::preview::preview_bytes,
+            commands::preview::preview_text,
+            commands::menu::context_menu,
+            commands::menu::open_item,
         ])
         .run(tauri::generate_context!());
 

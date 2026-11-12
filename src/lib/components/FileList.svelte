@@ -113,7 +113,22 @@
   }
 
   function onRowDblClick(event: MouseEvent, entry: Entry) {
-    if (!event.ctrlKey && !event.shiftKey) pane.open(entry);
+    if (!event.ctrlKey && !event.shiftKey) void ops.open(pane, entry);
+  }
+
+  // Rechtsklick: Zeile markieren (wie im Explorer) und das native Menü zeigen.
+  function onRowContext(event: MouseEvent, index: number) {
+    event.preventDefault();
+    const entry = items[index];
+    if (entry && !pane.selected.has(entry.name)) pane.select(index);
+    void ops.contextMenu(pane);
+  }
+
+  function onBackgroundContext(event: MouseEvent) {
+    if ((event.target as Element).closest('.row')) return;
+    event.preventDefault();
+    pane.clearSelection();
+    void ops.contextMenu(pane);
   }
 
   function onBackgroundClick(event: MouseEvent) {
@@ -146,7 +161,7 @@
         break;
       case 'Enter': {
         const entry = items[cursor];
-        if (entry) pane.open(entry);
+        if (entry) void ops.open(pane, entry);
         break;
       }
       case 'Escape':
@@ -176,6 +191,7 @@
   bind:clientHeight={height}
   onscroll={() => (scrollTop = viewport?.scrollTop ?? 0)}
   onkeydown={onKeydown}
+  oncontextmenu={onBackgroundContext}
   class:drop={dnd.isHover(pane.path) && !pane.error}
   data-drop={pane.error ? undefined : pane.path}
   tabindex="0"
@@ -255,11 +271,12 @@
               aria-rowindex={index + 1}
               aria-selected={pane.selected.has(entry.name)}
               onpointerdown={(event) => onRowPointerDown(event, index)}
+              oncontextmenu={(event) => onRowContext(event, index)}
               onclick={(event) => onRowClick(event, index)}
               ondblclick={(event) => onRowDblClick(event, entry)}
             >
               <span class="c-name" role="gridcell">
-                <FileIcon {entry} />
+                <FileIcon {entry} dir={pane.path} />
                 {#if pane.renaming === entry.name}
                   <RenameBox
                     name={entry.name}

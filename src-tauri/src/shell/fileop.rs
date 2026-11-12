@@ -12,11 +12,12 @@ use windows::core::{Error as WinError, HSTRING, PCWSTR};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 use windows::Win32::UI::Shell::{
-    FileOperation, IFileOperation, IShellItem, SHCreateItemFromParsingName, FILEOPERATION_FLAGS,
-    FOFX_RECYCLEONDELETE, FOF_ALLOWUNDO, FOF_RENAMEONCOLLISION,
+    FileOperation, IFileOperation, FILEOPERATION_FLAGS, FOFX_RECYCLEONDELETE, FOF_ALLOWUNDO,
+    FOF_RENAMEONCOLLISION,
 };
 
 use super::com::ComGuard;
+use super::items::item;
 
 /// Ergebnis einer Operation. `aborted`: Der Benutzer hat im Windows-Dialog abgebrochen.
 #[derive(Debug, Clone, Copy)]
@@ -30,12 +31,6 @@ fn map(err: &WinError) -> Result<Outcome, CoreError> {
     } else {
         Err(winerr::from_hresult(err.code().0))
     }
-}
-
-fn item(path: &ValidPath) -> Result<IShellItem, WinError> {
-    let wide = HSTRING::from(path.as_str());
-    // SAFETY: `wide` ist ein gültiger, nullterminierter UTF-16-String, der den Aufruf überlebt.
-    unsafe { SHCreateItemFromParsingName(PCWSTR(wide.as_ptr()), None) }
 }
 
 fn operation(owner: isize, flags: FILEOPERATION_FLAGS) -> Result<IFileOperation, WinError> {

@@ -3,7 +3,11 @@
 
 pub mod clipboard;
 pub mod com;
+pub mod ctxmenu;
 pub mod dragdrop;
 pub mod fileop;
+pub mod images;
+pub mod items;
 pub mod keys;
+pub mod launch;
 pub mod places;

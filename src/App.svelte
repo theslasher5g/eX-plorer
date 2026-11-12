@@ -5,9 +5,11 @@
   import { dialogs } from './lib/stores/dialog.svelte';
   import { dnd } from './lib/stores/dnd.svelte';
   import { ops } from './lib/stores/ops.svelte';
+  import { quicklook } from './lib/stores/quicklook.svelte';
   import { Tabs } from './lib/stores/tabs.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
   import FileList from './lib/components/FileList.svelte';
+  import QuickLook from './lib/components/QuickLook.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   import StatusBar from './lib/components/StatusBar.svelte';
   import TitleBar from './lib/components/TitleBar.svelte';
@@ -72,7 +74,7 @@
 
   function onKeydown(event: KeyboardEvent) {
     // Solange ein Dialog offen ist, gehört ihm die Tastatur.
-    if (dialogs.confirmState) return;
+    if (dialogs.confirmState || quicklook.isOpen) return;
     const { altKey, ctrlKey, shiftKey } = event;
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     let handled = true;
@@ -91,6 +93,7 @@
     else if (ctrlKey && key === 'c') void ops.copy(false);
     else if (ctrlKey && key === 'x') void ops.copy(true);
     else if (ctrlKey && key === 'v') void ops.paste();
+    else if (key === ' ') quicklook.open(pane);
     else if (key === 'F2') ops.startRename();
     else if (key === 'Delete') void ops.remove(shiftKey);
     else handled = false;
@@ -125,6 +128,7 @@
   </div>
 </div>
 
+<QuickLook />
 <ConfirmDialog />
 <Toast />
 

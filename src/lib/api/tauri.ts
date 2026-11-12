@@ -8,10 +8,14 @@ import type {
   ClipboardFiles,
   Entry,
   ListSummary,
+  MenuOutcome,
+  OpenResult,
   OpResult,
   PasteResult,
+  PreviewInfo,
   RenameResult,
   SidebarData,
+  TextContent,
 } from './types';
 
 export const tauriApi: Api = {
@@ -41,6 +45,12 @@ export const tauriApi: Api = {
         position: 'position' in payload ? payload.position : { x: 0, y: 0 },
       });
     }),
+  previewInfo: (path) => invoke<PreviewInfo>('preview_info', { path }),
+  previewBytes: (path) => invoke<ArrayBuffer>('preview_bytes', { path }),
+  previewText: (path) => invoke<TextContent>('preview_text', { path }),
+  contextMenu: (paths, folder, newTabLabel) =>
+    invoke<MenuOutcome>('context_menu', { paths, folder, newTabLabel }),
+  openItem: (path, confirmed) => invoke<OpenResult>('open_item', { path, confirmed }),
   window: {
     minimize: () => getCurrentWindow().minimize(),
     toggleMaximize: () => getCurrentWindow().toggleMaximize(),

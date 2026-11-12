@@ -4,43 +4,17 @@
 
 use explorer_core::path::ValidPath;
 use explorer_core::CoreError;
-use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::System::Com::IDataObject;
 use windows::Win32::System::Ole::{DROPEFFECT_COPY, DROPEFFECT_LINK, DROPEFFECT_MOVE};
-use windows::Win32::UI::Shell::Common::ITEMIDLIST;
-use windows::Win32::UI::Shell::{
-    BHID_DataObject, ILFree, SHCreateShellItemArrayFromIDLists, SHDoDragDrop, SHParseDisplayName,
-};
+use windows::Win32::UI::Shell::{BHID_DataObject, SHDoDragDrop};
 
-/// Gibt die Shell-IDLists beim Drop wieder frei.
-struct IdLists(Vec<*mut ITEMIDLIST>);
-
-impl Drop for IdLists {
-    fn drop(&mut self) {
-        for pidl in self.0.drain(..) {
-            // SAFETY: Jeder Zeiger stammt aus SHParseDisplayName und wird genau einmal freigegeben.
-            unsafe { ILFree(Some(pidl)) };
-        }
-    }
-}
+use super::items;
 
 fn data_object(paths: &[ValidPath]) -> Result<IDataObject, CoreError> {
-    let mut lists = IdLists(Vec::with_capacity(paths.len()));
-    for path in paths {
-        let wide = HSTRING::from(path.as_str());
-        let mut pidl: *mut ITEMIDLIST = std::ptr::null_mut();
-        // SAFETY: `wide` ist nullterminiert; `pidl` ist ein gültiger Ausgabezeiger.
-        unsafe { SHParseDisplayName(PCWSTR(wide.as_ptr()), None, &raw mut pidl, 0, None) }
-            .map_err(|e| explorer_core::winerr::from_hresult(e.code().0))?;
-        lists.0.push(pidl);
-    }
-    let raw: Vec<*const ITEMIDLIST> = lists.0.iter().map(|p| p.cast_const()).collect();
-    // SAFETY: `raw` enthält gültige absolute IDLists, die bis zum Ende dieser Funktion leben.
-    let array = unsafe { SHCreateShellItemArrayFromIDLists(&raw) }
-        .map_err(|e| explorer_core::winerr::from_hresult(e.code().0))?;
+    let array = items::array(paths)?;
     // SAFETY: gültiges Array; BHID_DataObject liefert ein IDataObject.
     unsafe { array.BindToHandler::<_, IDataObject>(None, &BHID_DataObject) }
-        .map_err(|e| explorer_core::winerr::from_hresult(e.code().0))
+        .map_err(|e| items::to_core(&e))
 }
 
 /// Läuft modal und **nur auf dem UI-Thread** (dort ist die Maus erfasst).

@@ -3,10 +3,10 @@
 Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
 Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
-> **Stand: Phase 2 von 7.** Fenster, Theme, Seitenleiste, Tabs, Ordner
-> navigieren, Dateioperationen (Kopieren, Ausschneiden, Einfügen, Löschen,
-> Umbenennen, Neuer Ordner), Drag & Drop und Live-Aktualisierung. Echte Icons,
-> weitere Ansichten, Baumansicht, OneDrive-Status und Netzwerk folgen (siehe
+> **Stand: Phase 3 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
+> Dateioperationen, Drag & Drop, Live-Aktualisierung, Windows-Icons, natives
+> Kontextmenü, Öffnen von Dateien und Schnellvorschau (Bild, Text, PDF).
+> Weitere Ansichten, Baumansicht, OneDrive-Status und Netzwerk folgen (siehe
 > [Fahrplan](#fahrplan)).
 
 Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
@@ -91,6 +91,9 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | Neuer Ordner | Strg+Umschalt+N oder Knopf in der Werkzeugleiste |
 | Verschieben / Kopieren per Maus | Ziehen auf Ordner, Tab, Pfadabschnitt oder Seitenleiste; Strg erzwingt Kopieren, Umschalt Verschieben |
 | In andere Programme ziehen | Ausgewählte Dateien aus der Liste ziehen |
+| Datei öffnen | Doppelklick oder Eingabetaste (ausführbare Typen erst nach Rückfrage) |
+| Schnellvorschau | Leertaste; Pfeiltasten wechseln die Datei, Bild auf/ab bei PDF-Seiten, Esc oder Leertaste schließen |
+| Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge) |
 
 ## Aufbau
 
@@ -100,19 +103,26 @@ src-tauri/
     src/path/         Pfadvalidierung und -normalisierung
     src/listing/      Ordner auflisten (Windows: FindFirstFileExW)
     src/ops/          Planung von Kopieren/Verschieben/Löschen/Umbenennen, Neuer Ordner
+    src/preview.rs    Vorschau-Regeln (Art, Limits) und sichere Text-Dekodierung
+    src/imaging.rs    BGRA → PNG für Icons und Thumbnails
+    src/exec.rs       Welche Dateitypen beim Öffnen eine Rückfrage brauchen
+    src/attrs.rs      Cloud-Platzhalter-Erkennung
     src/watch.rs      Ordner-Watcher (notify), gebündelte Meldungen
     src/winerr.rs     HRESULT/Win32-Fehlercodes → Fehlerarten
   src/
     commands/         Tauri-Commands (einziger Weg vom Frontend ins System)
     shell/            Windows-Shell-Aufrufe: bekannte Ordner, Laufwerke,
-                      IFileOperation, Zwischenablage (CF_HDROP), OLE-Drag, Tastenstatus
+                      IFileOperation, Zwischenablage (CF_HDROP), OLE-Drag, Tastenstatus,
+                      Icons/Thumbnails, Kontextmenü (eigener Thread), Datei öffnen
+    protocol.rs       URI-Schema shellimg (Icons/Thumbnails als PNG)
+    workers.rs        Arbeits-Pool für Bildanfragen (neueste zuerst, begrenzte Warteschlange)
     state.rs          Fenstermaterial (Mica)
     error.rs          Fehler mit stabilen Codes fürs Frontend
   capabilities/       Tauri-Berechtigungen des Fensters
 src/
   lib/api/            Typisierte Backend-Schnittstelle, Demo-Backend für den Browser
   lib/stores/         Ordneransicht (Pane), Tabs, Dateioperationen, Drag & Drop,
-                      Toast und Bestätigungsdialog
+                      Schnellvorschau, Toast und Bestätigungsdialog
   lib/components/     Titelleiste mit Tabs, Seitenleiste, Werkzeugleiste, Pfadleiste,
                       Sortier-Menü, Liste, Statusleiste
   app.css             Design-Tokens und gemeinsame Bausteine
@@ -131,15 +141,30 @@ src/
   danach die `\\?\`-Form, damit Windows den geprüften Pfad nicht umdeutet.
 - **Auflisten liest nur Metadaten.** Keine Datei wird geöffnet; OneDrive-
   Platzhalter werden dadurch nicht heruntergeladen.
-- **Nichts wird ausgeführt.** Ein Doppelklick öffnet bisher ausschließlich Ordner.
+- **Nichts wird automatisch geöffnet oder ausgeführt.** Dateien öffnen sich nur
+  auf Doppelklick, Eingabetaste oder Menübefehl, und Typen, die Code ausführen
+  können (exe, bat, ps1, msi, lnk, js …), erst nach ausdrücklicher Bestätigung.
+  Die Liste dieser Typen steht im Backend (`exec.rs`, getestet).
+- **Cloud-Platzhalter werden nie gelesen.** Für „nur in der Cloud“-Dateien
+  (OneDrive) erzeugt das Backend weder Icons noch Thumbnails noch Vorschauen;
+  die Attribute werden vorher per Metadaten geprüft. Dasselbe gilt für Icons
+  auf Netzwerkpfaden.
+- **Vorschau ist begrenzt:** Bilder bis 40 MiB, PDF bis 64 MiB, Text die ersten
+  256 KiB. SVG wird als Text gezeigt, nie als Bild, damit garantiert nichts
+  ausgeführt wird. Text wird über `textContent` angezeigt, nie als HTML.
 - **Operationen sind doppelt abgesichert.** Der Kern plant (`ops`): keine
   Laufwerks-/Freigabe-Wurzeln, kein Ordner in sich selbst, doppelte und
   verschachtelte Auswahl wird zusammengefasst, Obergrenze von 20.000 Elementen.
   Ausgeführt wird über die Windows-Shell, die Papierkorb und Konflikte kennt.
 - **Löschen fragt immer nach.** Wo es keinen Papierkorb gibt (Netzlaufwerk, USB,
   UNC), sagt der Dialog das deutlich; die Shell fragt zusätzlich selbst.
-- **Strikte CSP**, keine Remote-Inhalte. Einzige Lockerung: `style-src
-  'unsafe-inline'`, weil Svelte Inline-Styles für die virtualisierte Liste setzt.
+- **Strikte CSP**, keine Remote-Inhalte. Lockerungen und ihr Grund:
+  `style-src 'unsafe-inline'` (Svelte setzt Inline-Styles für die virtualisierte
+  Liste), `script-src 'wasm-unsafe-eval'` (pdf.js nutzt WebAssembly für
+  JPEG2000; erlaubt kein `eval`), `connect-src 'self'` und `worker-src 'self'
+  blob:` (pdf.js lädt Schriften und seinen Worker aus der App),
+  `img-src blob: http://shellimg.localhost` (Vorschau und Icons) und
+  `font-src data: blob:` (von pdf.js erzeugte Schriften).
 - **Dateinamen** werden nur als Text gerendert, nie über `{@html}` oder `innerHTML`.
 - `unsafe` steht nur in `crates/core/src/listing/win.rs` und
   `src-tauri/src/shell/`. `unwrap()`/`expect()` sind per Clippy-Lint verboten.
@@ -147,13 +172,40 @@ src/
 
 ## Bekannte Einschränkungen
 
-- **Phase 2 wurde auf echtem Windows noch nicht getestet.** Die
-  Dateioperationen, die Zwischenablage und der Drag in andere Programme
-  greifen tief in Windows ein und lassen sich nur dort prüfen. Kompiliert und
-  statisch geprüft sind sie, die Abläufe der Oberfläche liefen im Browser gegen
-  ein Demo-Backend. Bitte besonders testen: Strg+C im Explorer und Strg+V hier
-  (und umgekehrt), Dateien in den Explorer ziehen, Dateien aus dem Explorer
-  hereinziehen.
+- **Phase 2 und 3 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
+  Zwischenablage, Drag in andere Programme, Icon-Gewinnung, das native
+  Kontextmenü und das Öffnen von Dateien greifen tief in Windows ein und lassen
+  sich nur dort prüfen. Kompiliert und statisch geprüft sind sie, die Abläufe
+  der Oberfläche liefen im Browser gegen ein Demo-Backend. Bitte besonders
+  testen: Strg+C im Explorer und Strg+V hier (und umgekehrt), Dateien in den
+  Explorer und aus ihm ziehen, Rechtsklick (erscheint z. B. 7-Zip?), Icons und
+  Schnellvorschau in einem Ordner mit vielen Bildern.
+- **Kontextmenü:** Es erscheint das klassische Windows-Menü, wie unter „Weitere
+  Optionen anzeigen“ in Windows 11; Einträge moderner Paket-Apps, die nur im
+  neuen Menü stehen, fehlen teilweise. Ausschneiden, Kopieren, Einfügen,
+  Löschen, Umbenennen und Öffnen führt die App selbst aus (damit Rückfragen
+  und Anzeige stimmen), alles andere die Shell. Das Menü öffnet an der
+  Mausposition; über die Menütaste ausgelöst erscheint es dort, wo der Zeiger
+  steht. „Neu“-Einträge der leeren Fläche legen Dateien an, wählen sie aber
+  nicht zum Umbenennen aus.
+- **Icons:** Dateien zeigen das Windows-Icon bzw. Thumbnail (32 px, nur
+  sichtbare Zeilen, drei Arbeits-Threads), solange es geladen wird oder wenn
+  nichts erzeugt werden darf (Cloud, Netzwerk) das gezeichnete Typ-Symbol.
+  Ordner behalten das gezeichnete Symbol des Designs. Das Backend rechnet
+  vormultiplizierte Alphawerte zurück; bei teiltransparenten Randpixeln kann
+  das minimal abweichen.
+- **Thumbnails** erscheinen bisher nur als Listen-Icon und in der
+  Schnellvorschau. Eine Kachelansicht, in der sie groß zur Geltung kommen,
+  fehlt noch; auf Netzlaufwerken gibt es sie auch dort nicht automatisch.
+- **Schnellvorschau:** Bilder, Text und PDF. Andere Typen zeigen Name, Art,
+  Größe, Datum und, falls Windows eines liefert, ein großes Thumbnail. Keine
+  Wiedergabe von Video oder Audio, bei PDF keine Textauswahl und keine Links.
+  PDFs mit Schriften, die nur über Adobe-CMaps (v. a. CJK) definiert und nicht
+  eingebettet sind, werden evtl. falsch dargestellt; die CMaps liegen nicht bei.
+  Die App wächst durch pdf.js um rund 4 MB, geladen wird es erst beim ersten PDF.
+- **Dateien auf Netzlaufwerken** werden für die Vorschau gelesen (auf
+  ausdrückliche Handlung); ein Timeout für nicht erreichbare Server folgt mit
+  der Netzwerk-Phase.
 - **Fortschritt und Konflikte zeigt Windows an**, nicht die App: Bei großen
   Vorgängen erscheint der gewohnte Windows-Dialog, ebenso bei Namenskonflikten.
   Eine eigene Fortschrittskarte gibt es nicht.
@@ -170,7 +222,6 @@ src/
   funktionieren nur, wenn Windows lange Pfade aktiviert hat.
 - **Es gibt nur die Listenansicht**; Kacheln, Spalten und Baum aus dem Design
   folgen, ebenso Einstellungen und der Netzwerk-Eintrag der Seitenleiste.
-- **Ein Doppelklick öffnet nur Ordner**, keine Dateien.
 - **Symbole sind gezeichnet, nicht von Windows**: Ordnersymbol und farbige
   Typ-Kürzel aus dem Design. Echte Windows-Icons und Thumbnails kommen in
   Phase 3; die Typ-Spalte leitet sich bis dahin aus der Endung ab.
@@ -197,8 +248,11 @@ src/
 
 1. ✅ Projekt-Setup, Fenster, Theme, Seitenleiste, Ordner auflisten und navigieren
 2. ✅ Dateioperationen, Drag & Drop, Tabs, Live-Aktualisierung
-3. Icons, Thumbnails, Kontextmenü, Schnellvorschau
+3. ✅ Icons, Thumbnails, Kontextmenü, Schnellvorschau, Datei öffnen
 4. Baumansicht mit Limits, Abbruch und Export
 5. OneDrive-Integration
 6. Netzwerklaufwerke
 7. Feinschliff: Performance, Tests, Sicherheitsprüfung, Installer
+
+Noch keiner Phase zugeordnet, aber in den Anforderungen und im Design
+vorhanden: Kachel- und Spaltenansicht, Gruppierung, Einstellungen.

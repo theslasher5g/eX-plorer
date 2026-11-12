@@ -1,6 +1,6 @@
 // Demo-Backend für die Entwicklung im Browser. Wird nur im Dev-Modus geladen
 // und greift auf kein echtes Dateisystem zu.
-import type { Api, ClipboardFiles, DragDropEvent, Entry } from './types';
+import type { Api, ClipboardFiles, DragDropEvent, Entry, MenuOutcome, PreviewInfo } from './types';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 10, 12, 9, 30);
@@ -76,7 +76,11 @@ const tree: Record<string, Entry[]> = {
     f('Logo.svg', 2_048, 33),
     f('Panorama.png', 18_440_221, 70),
   ],
-  [`${HOME}\\OneDrive`]: [d('Dokumente', 2), f('Geteilt.docx', 20_480, 1)],
+  [`${HOME}\\OneDrive`]: [
+    d('Dokumente', 2),
+    f('Geteilt.docx', 20_480, 1),
+    f('Cloud-Bericht.pdf', 3_400_000, 9, { attributes: 0x400000 }),
+  ],
   'D:\\': [d('Backups', 7), d('Medien', 30)],
   'E:\\': [f('Foto.jpg', 2_048_000, 4), d('USB-Ordner', 9)],
   'E:\\USB-Ordner': [],
@@ -200,6 +204,81 @@ function doTransfer(sources: string[], dest: string, move: boolean) {
   return names;
 }
 
+// --- Vorschau (Demo) -------------------------------------------------------
+
+const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'];
+const TEXT_EXT = ['txt', 'md', 'json', 'log', 'csv', 'js', 'ts', 'css', 'html', 'xml'];
+
+function previewKind(name: string): PreviewInfo['kind'] {
+  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  if (IMAGE_EXT.includes(ext)) return 'image';
+  if (ext === 'pdf') return 'pdf';
+  if (TEXT_EXT.includes(ext) || name === 'README' || name === '.gitconfig') return 'text';
+  return 'other';
+}
+
+function findByPath(path: string): Entry {
+  const p = norm(path);
+  const entry = find(parentOf(p), nameOf(p));
+  if (!entry) fail('not_found');
+  return entry;
+}
+
+async function demoPng(label: string): Promise<ArrayBuffer> {
+  const canvas = new OffscreenCanvas(480, 320);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) fail('unsupported');
+  const sky = ctx.createLinearGradient(0, 0, 0, 320);
+  sky.addColorStop(0, '#8DBDF2');
+  sky.addColorStop(1, '#F6D9B5');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, 480, 320);
+  ctx.fillStyle = '#5E8F77';
+  ctx.beginPath();
+  ctx.ellipse(120, 340, 260, 120, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(label, 16, 32);
+  return (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer();
+}
+
+/** Minimales gültiges PDF mit zwei Seiten. */
+function demoPdf(title: string): ArrayBuffer {
+  const page = (text: string) => `BT /F1 26 Tf 60 760 Td (${text}) Tj ET BT /F1 14 Tf 60 720 Td (Beispielseite der Demo-Vorschau) Tj ET`;
+  const objects = [
+    '<</Type/Catalog/Pages 2 0 R>>',
+    '<</Type/Pages/Kids[3 0 R 5 0 R]/Count 2>>',
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 7 0 R>>>>>>',
+    `<</Length ${page(title).length}>>\nstream\n${page(title)}\nendstream`,
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 6 0 R/Resources<</Font<</F1 7 0 R>>>>>>',
+    `<</Length ${page('Seite 2').length}>>\nstream\n${page('Seite 2')}\nendstream`,
+    '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const o of offsets) out += `${String(o).padStart(10, '0')} 00000 n \n`;
+  out += `trailer\n<</Size ${objects.length + 1}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF`;
+  return new TextEncoder().encode(out).buffer as ArrayBuffer;
+}
+
+const RISKY = ['exe', 'bat', 'cmd', 'msi', 'ps1', 'lnk', 'js'];
+const calls = { menu: [] as unknown[], open: [] as unknown[] };
+let nextMenu: MenuOutcome = { kind: 'dismissed' };
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  Object.assign(window, {
+    __mockCalls: calls,
+    __mockMenuNext: (outcome: MenuOutcome) => (nextMenu = outcome),
+  });
+}
+
 export const mockApi: Api = {
   async appInfo() {
     return { material: 'solid', homeDir: HOME };
@@ -319,6 +398,49 @@ export const mockApi: Api = {
   async onDragDrop(handler) {
     dropHandlers.add(handler);
     return () => dropHandlers.delete(handler);
+  },
+  async previewInfo(path) {
+    const entry = findByPath(path);
+    const kind = entry.isDir ? 'other' : previewKind(entry.name);
+    const mime = kind === 'image' ? 'image/png' : kind === 'pdf' ? 'application/pdf' : null;
+    return {
+      kind,
+      mime,
+      size: entry.size,
+      isDir: entry.isDir,
+      cloudOnly: (entry.attributes & 0x400000) !== 0,
+      tooLarge: entry.size > 40 * 1024 * 1024,
+    };
+  },
+  async previewBytes(path) {
+    const entry = findByPath(path);
+    if ((entry.attributes & 0x400000) !== 0) fail('cloud_only');
+    await sleep(60);
+    const kind = previewKind(entry.name);
+    if (kind === 'image') return demoPng(entry.name);
+    if (kind === 'pdf') return demoPdf(entry.name.replace(/\.pdf$/i, ''));
+    return fail('unsupported');
+  },
+  async previewText(path) {
+    const entry = findByPath(path);
+    if (previewKind(entry.name) !== 'text') fail('unsupported');
+    await sleep(40);
+    const body = entry.name === 'Notizen.txt'
+      ? 'Notizen – Kundentermin Müller GmbH\nDonnerstag, 12.11.2026\n\nHeute\n– Angebot v2 bis Freitag verschicken\n– Lieferzeit auf 6 Wochen bestätigen\n\n<script>alert(1)</script> bleibt Text.'
+      : `Demo-Inhalt von ${entry.name}\n` + Array.from({ length: 80 }, (_, i) => `Zeile ${i + 1}`).join('\n');
+    return { text: body, truncated: entry.name !== 'Notizen.txt' };
+  },
+  async contextMenu(paths, folder, newTabLabel) {
+    calls.menu.push({ paths, folder, newTabLabel });
+    const outcome = nextMenu;
+    nextMenu = { kind: 'dismissed' };
+    return outcome;
+  },
+  async openItem(path, confirmed) {
+    calls.open.push({ path, confirmed });
+    const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+    if (RISKY.includes(ext) && !confirmed) return { needsConfirm: true };
+    return { needsConfirm: false };
   },
   window: {
     async minimize() {},

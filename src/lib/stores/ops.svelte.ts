@@ -1,4 +1,12 @@
-import { getApi, toApiError, type ClipboardFiles, type Drive, type OpResult, type TransferMode } from '../api';
+import {
+  getApi,
+  toApiError,
+  type ClipboardFiles,
+  type Drive,
+  type Entry,
+  type OpResult,
+  type TransferMode,
+} from '../api';
 import { errorText, itemsText, t } from '../i18n';
 import { joinPath, parentPath, samePath } from '../paths';
 import { dialogs } from './dialog.svelte';
@@ -153,6 +161,84 @@ class Ops {
     } catch (err) {
       this.#fail(err);
       this.#refreshDirs([pane.path]);
+    }
+  }
+
+  /** Öffnet einen Eintrag: Ordner in der Ansicht, Dateien mit dem Standardprogramm. */
+  async open(pane: Pane, entry: Entry): Promise<void> {
+    const path = joinPath(pane.path, entry.name);
+    if (entry.isDir) {
+      void pane.navigate(path);
+      return;
+    }
+    try {
+      const api = await getApi();
+      const result = await api.openItem(path, false);
+      if (!result.needsConfirm) return;
+      // Ausführbare Dateitypen nur nach ausdrücklicher Bestätigung.
+      const confirmed = await dialogs.confirm({
+        title: t('open.confirmTitle', { name: entry.name }),
+        body: t('open.confirmBody'),
+        confirm: t('open.confirm'),
+        cancel: t('delete.cancel'),
+        danger: true,
+      });
+      if (confirmed) await api.openItem(path, true);
+    } catch (err) {
+      this.#fail(err);
+    }
+  }
+
+  /** Zeigt das native Windows-Kontextmenü für die Auswahl (oder die leere Fläche). */
+  async contextMenu(pane: Pane): Promise<void> {
+    if (pane.error || !pane.path) return;
+    const paths = this.selectedPaths(pane);
+    const selected = pane.entries.filter((e) => pane.selected.has(e.name));
+    const folder = selected.length === 1 && selected[0].isDir ? selected[0] : null;
+    try {
+      const outcome = await (await getApi()).contextMenu(
+        paths,
+        paths.length === 0 ? pane.path : null,
+        folder ? t('menu.newTab') : null,
+      );
+      switch (outcome.kind) {
+        case 'newTab':
+          if (folder) this.#tabs?.open(joinPath(pane.path, folder.name));
+          break;
+        case 'done':
+          // Die Shell hat selbst gehandelt (z. B. „Neu“, Archiv, Eigenschaften).
+          void pane.refresh();
+          break;
+        case 'verb':
+          await this.#runVerb(pane, outcome.verb, selected);
+          break;
+        default:
+      }
+    } catch (err) {
+      this.#fail(err);
+    }
+  }
+
+  /** Verben, die die App selbst ausführt, damit Rückfragen und Anzeige stimmen. */
+  async #runVerb(pane: Pane, verb: string, selected: Entry[]): Promise<void> {
+    switch (verb) {
+      case 'cut':
+        return this.copy(true);
+      case 'copy':
+        return this.copy(false);
+      case 'paste':
+        return this.paste();
+      case 'delete':
+        return this.remove();
+      case 'rename':
+        return this.startRename();
+      case 'open':
+        for (const entry of selected.slice(0, 10)) {
+          if (entry.isDir && selected.length > 1) this.#tabs?.open(joinPath(pane.path, entry.name));
+          else await this.open(pane, entry);
+        }
+        break;
+      default:
     }
   }
 

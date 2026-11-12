@@ -77,6 +77,32 @@ export interface DragDropEvent {
   position: { x: number; y: number };
 }
 
+export interface PreviewInfo {
+  kind: 'image' | 'pdf' | 'text' | 'other';
+  mime: string | null;
+  size: number;
+  isDir: boolean;
+  /** Nur in der Cloud: eine Vorschau würde den Inhalt herunterladen. */
+  cloudOnly: boolean;
+  tooLarge: boolean;
+}
+
+export interface TextContent {
+  text: string;
+  truncated: boolean;
+}
+
+export type MenuOutcome =
+  | { kind: 'dismissed' }
+  | { kind: 'done' }
+  | { kind: 'verb'; verb: string }
+  | { kind: 'newTab' };
+
+export interface OpenResult {
+  /** Die Datei kann Code ausführen; erst nach Bestätigung erneut öffnen. */
+  needsConfirm: boolean;
+}
+
 export interface ApiError {
   code: string;
   message: string;
@@ -108,6 +134,12 @@ export interface Api {
   watchDirs(paths: string[]): Promise<void>;
   onDirChanged(handler: (path: string) => void): Promise<() => void>;
   onDragDrop(handler: (event: DragDropEvent) => void): Promise<() => void>;
+  previewInfo(path: string): Promise<PreviewInfo>;
+  previewBytes(path: string): Promise<ArrayBuffer>;
+  previewText(path: string): Promise<TextContent>;
+  /** Zeigt das native Windows-Kontextmenü an der Mausposition. */
+  contextMenu(paths: string[], folder: string | null, newTabLabel: string | null): Promise<MenuOutcome>;
+  openItem(path: string, confirmed: boolean): Promise<OpenResult>;
   window: WindowControls;
 }
 
