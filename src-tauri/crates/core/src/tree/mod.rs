@@ -441,8 +441,9 @@ mod tests {
     fn link_loops_are_not_followed() {
         let tmp = tempfile::tempdir().unwrap();
         fs::create_dir(tmp.path().join("real")).unwrap();
-        fs::write(tmp.path().join("real/file"), b"").unwrap();
-        let link = tmp.path().join("real/loop");
+        fs::write(tmp.path().join("real").join("file"), b"").unwrap();
+        // Komponentenweise zusammensetzen: `mklink` liest `/loop` sonst als Schalter.
+        let link = tmp.path().join("real").join("loop");
         #[cfg(unix)]
         std::os::unix::fs::symlink(tmp.path(), &link).unwrap();
         #[cfg(windows)]
