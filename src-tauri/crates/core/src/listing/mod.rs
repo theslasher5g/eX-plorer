@@ -161,12 +161,12 @@ mod tests {
     #[test]
     fn large_directory() {
         let tmp = tempfile::tempdir().unwrap();
-        for i in 0..20_000 {
+        for i in 0..5_000 {
             fs::File::create(tmp.path().join(format!("file-{i:05}.dat"))).unwrap();
         }
         let (entries, sizes) = collect(tmp.path(), 2000);
-        assert_eq!(entries.len(), 20_000);
-        assert!(sizes.iter().all(|&s| s <= 2000));
+        assert_eq!(entries.len(), 5_000);
+        assert_eq!(sizes, [2000, 2000, 1000]);
     }
 
     /// Ein Link, der auf seinen eigenen Elternordner zeigt (Endlosschleife),

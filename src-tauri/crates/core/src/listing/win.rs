@@ -84,6 +84,34 @@ fn to_entry(data: &WIN32_FIND_DATAW) -> Option<Entry> {
     })
 }
 
+/// Übersetzt einen Windows-Fehler. `windows::core::Error` trägt ein HRESULT;
+/// die Standardbibliothek erkennt `NotFound` & Co. nur am Win32-Fehlercode.
+fn to_core_error(err: windows::core::Error) -> CoreError {
+    const FACILITY_WIN32: u32 = 0x8007_0000;
+    let hresult = err.code().0 as u32;
+    let io_error = if hresult & 0xFFFF_0000 == FACILITY_WIN32 {
+        io::Error::from_raw_os_error((hresult & 0xFFFF) as i32)
+    } else {
+        io::Error::other(err)
+    };
+    CoreError::from(io_error)
+}
+
+/// Fehler beim Öffnen der Suche. Für eine Datei statt eines Ordners meldet
+/// Windows je nach Lage „Pfad nicht gefunden“; das wird hier präzisiert.
+fn open_error(dir: &Path, err: windows::core::Error) -> CoreError {
+    let error = to_core_error(err);
+    if matches!(error, CoreError::NotFound | CoreError::Io(_)) {
+        // Nur Metadaten, folgt keinen Links, lädt nichts herunter.
+        if let Ok(meta) = std::fs::symlink_metadata(dir) {
+            if !meta.is_dir() {
+                return CoreError::NotADirectory;
+            }
+        }
+    }
+    error
+}
+
 pub(super) fn for_each_entry(
     dir: &Path,
     visit: &mut dyn FnMut(Entry) -> bool,
@@ -112,7 +140,7 @@ pub(super) fn for_each_entry(
             FIND_FIRST_EX_LARGE_FETCH,
         )
     }
-    .map_err(|e| CoreError::from(io::Error::from(e)))?;
+    .map_err(|e| open_error(dir, e))?;
     let handle = FindHandle(handle);
 
     loop {
@@ -126,7 +154,7 @@ pub(super) fn for_each_entry(
             if e.code() == ERROR_NO_MORE_FILES.to_hresult() {
                 break;
             }
-            return Err(CoreError::from(io::Error::from(e)));
+            return Err(to_core_error(e));
         }
     }
     Ok(())
