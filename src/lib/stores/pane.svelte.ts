@@ -1,13 +1,17 @@
 import { getApi, toApiError, type ApiError, type Entry } from '../api';
 import { locale } from '../i18n';
-import { extension, joinPath, parentPath, samePath } from '../paths';
+import { extension, joinPath, parentPath, samePath, splitPath } from '../paths';
 
 export type SortKey = 'name' | 'modified' | 'type' | 'size';
 
 const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
 
+let nextId = 1;
+
 /** Zustand einer Ordneransicht: Pfad, Verlauf, Einträge, Sortierung, Auswahl. */
 export class Pane {
+  /** Stabile Kennung, z. B. als Schlüssel für Tabs. */
+  readonly id = nextId++;
   path = $state('');
   entries = $state.raw<Entry[]>([]);
   loading = $state(false);
@@ -33,6 +37,18 @@ export class Pane {
   readonly canForward = $derived(this.#index < this.#history.length - 1);
   readonly canUp = $derived(parentPath(this.path) !== null);
 
+  /** Name des aktuellen Ordners, z. B. als Tab-Titel. */
+  readonly title = $derived(splitPath(this.path).at(-1)?.label ?? '');
+
+  /** Gesamtgröße der ausgewählten Dateien in Bytes. */
+  readonly selectedBytes = $derived.by(() => {
+    const selected = this.selected;
+    if (selected.size === 0) return 0;
+    let sum = 0;
+    for (const entry of this.entries) if (!entry.isDir && selected.has(entry.name)) sum += entry.size;
+    return sum;
+  });
+
   readonly hiddenCount = $derived(
     this.showHidden ? 0 : this.entries.reduce((n, e) => n + (e.hidden ? 1 : 0), 0),
   );
@@ -52,7 +68,9 @@ export class Pane {
       if (key === 'size') result = a.size - b.size;
       else if (key === 'modified') result = (a.modifiedMs ?? 0) - (b.modifiedMs ?? 0);
       else if (key === 'type') result = collator.compare(extension(a.name), extension(b.name));
-      return (result || collator.compare(a.name, b.name)) * direction;
+      if (result !== 0) return result * direction;
+      // Bei Gleichstand nach Name; die Richtung gilt dafür nur, wenn nach Name sortiert wird.
+      return collator.compare(a.name, b.name) * (key === 'name' ? direction : 1);
     });
   });
 
@@ -149,6 +167,12 @@ export class Pane {
     this.selected = new Set();
     this.cursor = -1;
     this.#anchor = -1;
+  }
+
+  setSortDirection(ascending: boolean): void {
+    if (this.sortAsc === ascending) return;
+    this.sortAsc = ascending;
+    this.#resetSelection();
   }
 
   setSort(key: SortKey): void {

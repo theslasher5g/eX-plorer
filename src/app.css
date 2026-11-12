@@ -1,56 +1,149 @@
+/* Design-Tokens „Lichtung“. Hell ist der Standard; Dunkel folgt dem System
+   oder wird über data-theme="dark" am Wurzelelement erzwungen. */
 :root {
   color-scheme: light dark;
 
-  --font: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font: 'Segoe UI Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Mono', Consolas, ui-monospace, monospace;
 
-  --radius-s: 6px;
-  --radius-m: 8px;
-  --radius-l: 12px;
-  --ease: cubic-bezier(0.2, 0, 0, 1);
-  --fast: 150ms;
-  --slow: 220ms;
+  --r-sm: 6px;
+  --r-btn: 8px;
+  --r-menu: 10px;
+  --r-win: 12px;
+  --r-dialog: 14px;
 
-  --accent: #0a6cff;
-  --accent-soft: rgba(10, 108, 255, 0.13);
-  --accent-soft-strong: rgba(10, 108, 255, 0.2);
-  --folder: #3b9cf5;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
 
-  --text: #1d1d1f;
-  --text-2: #6e6e73;
-  --text-3: #a1a1a6;
+  /* Bewegung: Hover 150 ms, Auswahl/Tabs 180 ms, Aufklappen 200 ms, Overlays 220 ms. */
+  --t-hover: 150ms;
+  --t-select: 180ms;
+  --t-expand: 200ms;
+  --t-overlay: 220ms;
+
+  --bg: #f4f5f8;
+  --glass: rgba(246, 247, 250, 0.74);
   --surface: #ffffff;
-  --window: #ececef;
-  --sidebar-tint: rgba(255, 255, 255, 0.35);
-  --field: rgba(0, 0, 0, 0.045);
-  --field-focus: #ffffff;
-  --hover: rgba(0, 0, 0, 0.055);
-  --active: rgba(0, 0, 0, 0.09);
-  --border: rgba(0, 0, 0, 0.08);
-  --shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 2px 12px rgba(0, 0, 0, 0.06);
-  --danger: #e5484d;
+  --surface-2: #f3f4f7;
+  --text: #1b1f27;
+  --muted: #5b6372;
+  --border: rgba(20, 28, 45, 0.09);
+  --border-strong: rgba(20, 28, 45, 0.16);
+  --accent: #2f6fd6;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(47, 111, 214, 0.12);
+  --sel: rgba(47, 111, 214, 0.15);
+  --hover: rgba(20, 28, 45, 0.05);
+  --press: rgba(20, 28, 45, 0.09);
+  --nav-on: rgba(255, 255, 255, 0.72);
+  --warn: #9a5b00;
+  --warn-bg: rgba(214, 140, 0, 0.14);
+  --err: #c4333b;
+  --err-bg: rgba(196, 51, 59, 0.1);
+  --ok: #17784a;
+  --ok-bg: rgba(23, 120, 74, 0.12);
+  --track: #8a93a3;
+  --track-soft: rgba(20, 28, 45, 0.14);
+  --scrim: rgba(20, 28, 45, 0.28);
+  --shadow-sm: 0 1px 2px rgba(20, 28, 45, 0.07), 0 1px 1px rgba(20, 28, 45, 0.04);
+  --shadow-md: 0 8px 24px rgba(20, 28, 45, 0.12), 0 2px 6px rgba(20, 28, 45, 0.06);
+  --shadow-lg: 0 24px 64px rgba(20, 28, 45, 0.22), 0 4px 12px rgba(20, 28, 45, 0.08);
+  --folder-back: #8db6f2;
+  --folder-front: #b5d0fa;
+  --t-pdf: #b3261e;
+  --t-doc: #1f5fbf;
+  --t-xls: #17784a;
+  --t-ppt: #b4540a;
+  --t-img: #7a3fb8;
+  --t-vid: #b0245f;
+  --t-zip: #8a6a00;
+  --t-txt: #5b6372;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --accent: #3b8eff;
-    --accent-soft: rgba(59, 142, 255, 0.2);
-    --accent-soft-strong: rgba(59, 142, 255, 0.3);
-    --folder: #4aa8ff;
-
-    --text: #f5f5f7;
-    --text-2: #a1a1a6;
-    --text-3: #6e6e73;
-    --surface: #1f1f22;
-    --window: #2a2a2e;
-    --sidebar-tint: rgba(40, 40, 44, 0.3);
-    --field: rgba(255, 255, 255, 0.07);
-    --field-focus: #2c2c30;
-    --hover: rgba(255, 255, 255, 0.07);
-    --active: rgba(255, 255, 255, 0.11);
+  :root:not([data-theme='light']) {
+    --bg: #171a21;
+    --glass: rgba(34, 38, 48, 0.74);
+    --surface: #252a34;
+    --surface-2: #2e3441;
+    --text: #eceef2;
+    --muted: #a6adbb;
     --border: rgba(255, 255, 255, 0.09);
-    --shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 2px 12px rgba(0, 0, 0, 0.3);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --accent: #6ea2ff;
+    --on-accent: #0a1a38;
+    --accent-soft: rgba(110, 162, 255, 0.16);
+    --sel: rgba(110, 162, 255, 0.22);
+    --hover: rgba(255, 255, 255, 0.06);
+    --press: rgba(255, 255, 255, 0.1);
+    --nav-on: rgba(255, 255, 255, 0.09);
+    --warn: #f0b35a;
+    --warn-bg: rgba(240, 179, 90, 0.16);
+    --err: #ff8e94;
+    --err-bg: rgba(255, 142, 148, 0.14);
+    --ok: #62d69e;
+    --ok-bg: rgba(98, 214, 158, 0.14);
+    --track: #7c8595;
+    --track-soft: rgba(255, 255, 255, 0.18);
+    --scrim: rgba(4, 8, 18, 0.5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.3);
+    --folder-back: #4a74bd;
+    --folder-front: #6f9ae0;
+    --t-pdf: #ff9d96;
+    --t-doc: #8db8ff;
+    --t-xls: #6fdda6;
+    --t-ppt: #ffb27a;
+    --t-img: #cda2ff;
+    --t-vid: #ff9cc4;
+    --t-zip: #e6c45c;
+    --t-txt: #a6adbb;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #171a21;
+  --glass: rgba(34, 38, 48, 0.74);
+  --surface: #252a34;
+  --surface-2: #2e3441;
+  --text: #eceef2;
+  --muted: #a6adbb;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --accent: #6ea2ff;
+  --on-accent: #0a1a38;
+  --accent-soft: rgba(110, 162, 255, 0.16);
+  --sel: rgba(110, 162, 255, 0.22);
+  --hover: rgba(255, 255, 255, 0.06);
+  --press: rgba(255, 255, 255, 0.1);
+  --nav-on: rgba(255, 255, 255, 0.09);
+  --warn: #f0b35a;
+  --warn-bg: rgba(240, 179, 90, 0.16);
+  --err: #ff8e94;
+  --err-bg: rgba(255, 142, 148, 0.14);
+  --ok: #62d69e;
+  --ok-bg: rgba(98, 214, 158, 0.14);
+  --track: #7c8595;
+  --track-soft: rgba(255, 255, 255, 0.18);
+  --scrim: rgba(4, 8, 18, 0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --folder-back: #4a74bd;
+  --folder-front: #6f9ae0;
+  --t-pdf: #ff9d96;
+  --t-doc: #8db8ff;
+  --t-xls: #6fdda6;
+  --t-ppt: #ffb27a;
+  --t-img: #cda2ff;
+  --t-vid: #ff9cc4;
+  --t-zip: #e6c45c;
+  --t-txt: #a6adbb;
 }
 
 *,
@@ -68,11 +161,11 @@ body,
 
 body {
   font-family: var(--font);
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.4;
   color: var(--text);
   /* Deckend, solange Mica nicht bestätigt ist (Windows 10, Browser). */
-  background: var(--window);
+  background: var(--bg);
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
@@ -80,7 +173,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Windows 11: Fenster ist transparent, Mica scheint durch. */
+/* Windows 11: Das Fenster ist transparent, Mica scheint durch. */
 :root[data-material='mica'] body {
   background: transparent;
 }
@@ -95,12 +188,74 @@ button {
   border: 0;
   background: none;
   padding: 0;
+  margin: 0;
+  text-align: inherit;
   cursor: default;
 }
 
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+  border-radius: var(--r-btn);
+}
+
+/* Gemeinsame Bausteine */
+.icon-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-hover);
+}
+.icon-btn:hover {
+  background: var(--hover);
+}
+.icon-btn:active {
+  background: var(--press);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-btn);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition:
+    background var(--t-hover),
+    box-shadow var(--t-hover),
+    filter var(--t-hover);
+}
+.btn:hover {
+  background: var(--surface-2);
+}
+.btn:active {
+  background: var(--press);
+}
+.btn.pri {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  font-weight: 600;
+}
+.btn.pri:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+.btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 ::-webkit-scrollbar {
@@ -108,15 +263,21 @@ button {
   height: 12px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--active);
+  background: var(--track-soft);
   border-radius: 6px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-3);
+  background: var(--track);
   border: 3px solid transparent;
   background-clip: content-box;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

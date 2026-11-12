@@ -1,16 +1,6 @@
 <script lang="ts">
   import type { Component } from 'svelte';
-  import {
-    Cloud,
-    Disc,
-    Download,
-    FileText,
-    HardDrive,
-    Image,
-    Monitor,
-    Network,
-    Usb,
-  } from '@lucide/svelte';
+  import { Cloud, Disc, Download, FileText, HardDrive, Image, Monitor, Network, Usb } from '@lucide/svelte';
   import type { Drive, DriveKind, PlaceKind, SidebarData } from '../api';
   import { formatSize } from '../format';
   import { t } from '../i18n';
@@ -44,196 +34,112 @@
   };
 
   function driveName(drive: Drive): string {
-    const letter = drive.path.slice(0, 2);
-    return `${drive.label || t(`drive.${drive.kind}`)} (${letter})`;
+    return `${drive.label || t(`drive.${drive.kind}`)} (${drive.path.slice(0, 2)})`;
   }
 
-  function driveUsage(drive: Drive): { text: string; used: number } | null {
-    if (drive.totalBytes === null || drive.freeBytes === null || drive.totalBytes <= 0) return null;
-    return {
-      text: t('drive.free', {
-        free: formatSize(drive.freeBytes),
-        total: formatSize(drive.totalBytes),
-      }),
-      used: 1 - drive.freeBytes / drive.totalBytes,
-    };
+  function driveTitle(drive: Drive): string {
+    if (drive.totalBytes === null || drive.freeBytes === null) return drive.path;
+    return t('drive.free', { free: formatSize(drive.freeBytes), total: formatSize(drive.totalBytes) });
   }
 </script>
 
 {#snippet item(Icon: Component, label: string, path: string, title: string)}
-  <li>
-    <button
-      class="item"
-      class:active={samePath(path, current)}
-      {title}
-      onclick={() => onnavigate(path)}
-    >
-      <Icon size={16} strokeWidth={1.75} />
-      <span class="label">{label}</span>
-    </button>
-  </li>
+  <button class="nav" class:on={samePath(path, current)} {title} onclick={() => onnavigate(path)}>
+    <Icon size={18} strokeWidth={1.7} />
+    <span>{label}</span>
+  </button>
 {/snippet}
 
-<nav class="sidebar" aria-label={t('app.title')}>
-  <div class="drag" data-tauri-drag-region>
-    <span class="brand" data-tauri-drag-region>{t('app.title')}</span>
-  </div>
-
-  <div class="scroll">
-    {#if data}
-      {#if data.favorites.length}
-        <section>
-          <h2>{t('sidebar.favorites')}</h2>
-          <ul>
-            {#each data.favorites as place (place.path)}
-              {@render item(placeIcons[place.kind], place.label || t(`place.${place.kind}`), place.path, place.path)}
-            {/each}
-          </ul>
-        </section>
-      {/if}
-
-      {#if data.onedrive.length}
-        <section>
-          <h2>{t('sidebar.onedrive')}</h2>
-          <ul>
-            {#each data.onedrive as place (place.path)}
-              {@render item(Cloud, place.label || t('place.onedrive'), place.path, place.path)}
-            {/each}
-          </ul>
-        </section>
-      {/if}
-
-      {#if data.drives.length}
-        <section>
-          <h2>{t('sidebar.drives')}</h2>
-          <ul>
-            {#each data.drives as drive (drive.path)}
-              {@const usage = driveUsage(drive)}
-              {@const Icon = driveIcons[drive.kind]}
-              <li>
-                <button
-                  class="item"
-                  class:active={samePath(drive.path, current)}
-                  title={usage?.text ?? drive.path}
-                  onclick={() => onnavigate(drive.path)}
-                >
-                  <Icon size={16} strokeWidth={1.75} />
-                  <span class="label">
-                    {driveName(drive)}
-                    {#if usage}
-                      <span class="meter" class:full={usage.used > 0.9}>
-                        <span style:width="{Math.round(usage.used * 100)}%"></span>
-                      </span>
-                    {/if}
-                  </span>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        </section>
-      {/if}
+<aside class="side" aria-label={t('sidebar.label')}>
+  {#if data}
+    {#if data.favorites.length}
+      <div class="gtitle">{t('sidebar.favorites')}</div>
+      {#each data.favorites as place (place.path)}
+        {@render item(placeIcons[place.kind], place.label || t(`place.${place.kind}`), place.path, place.path)}
+      {/each}
     {/if}
-  </div>
-</nav>
+
+    {#if data.onedrive.length}
+      <div class="gtitle">{t('sidebar.onedrive')}</div>
+      {#each data.onedrive as place (place.path)}
+        {@render item(Cloud, place.label || t('place.onedrive'), place.path, place.path)}
+      {/each}
+    {/if}
+
+    {#if data.drives.length}
+      <div class="gtitle">{t('sidebar.drives')}</div>
+      {#each data.drives as drive (drive.path)}
+        {@render item(driveIcons[drive.kind], driveName(drive), drive.path, driveTitle(drive))}
+      {/each}
+    {/if}
+  {/if}
+</aside>
 
 <style>
-  .sidebar {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    min-width: 0;
-    background: var(--sidebar-tint);
+  .side {
+    width: 220px;
+    flex: none;
+    padding: 6px 10px 12px;
+    overflow: auto;
   }
 
-  .drag {
-    height: 48px;
-    display: flex;
-    align-items: center;
-    padding: 0 18px;
-  }
-
-  .brand {
-    font-family: var(--font-display);
-    font-size: 13px;
+  .gtitle {
+    padding: 16px 10px 6px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--text-2);
+    color: var(--muted);
     letter-spacing: 0.01em;
   }
 
-  .scroll {
-    overflow-y: auto;
-    padding: 0 10px 12px;
+  .gtitle:first-child {
+    padding-top: 6px;
   }
 
-  section + section {
-    margin-top: 18px;
-  }
-
-  h2 {
-    margin: 0 0 4px;
-    padding: 0 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-3);
-  }
-
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 1px;
-  }
-
-  .item {
+  .nav {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
     width: 100%;
-    min-height: 30px;
-    padding: 4px 8px;
-    border-radius: var(--radius-s);
-    text-align: left;
-    transition: background var(--fast) var(--ease);
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--r-btn);
+    transition: background var(--t-hover);
   }
 
-  .item :global(svg) {
-    flex: none;
-    color: var(--accent);
-  }
-
-  .item:hover {
+  .nav:hover {
     background: var(--hover);
   }
 
-  .item.active {
-    background: var(--active);
+  .nav.on {
+    background: var(--nav-on);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
   }
 
-  .label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .meter {
-    display: block;
-    height: 3px;
-    margin-top: 4px;
-    border-radius: 2px;
-    background: var(--active);
-    overflow: hidden;
-  }
-
-  .meter > span {
-    display: block;
-    height: 100%;
+  .nav.on::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
     border-radius: 2px;
     background: var(--accent);
   }
 
-  .meter.full > span {
-    background: var(--danger);
+  .nav :global(svg) {
+    flex: none;
+    color: var(--muted);
+  }
+
+  .nav.on :global(svg) {
+    color: var(--accent);
+  }
+
+  .nav span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

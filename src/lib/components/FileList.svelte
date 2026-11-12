@@ -1,23 +1,26 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, CircleAlert, File, Folder, FolderSymlink } from '@lucide/svelte';
+  import { ChevronDown, CircleAlert, Folder, Lock, Search } from '@lucide/svelte';
   import type { Entry } from '../api';
-  import { formatDate, formatSize, typeLabel } from '../format';
+  import { typeLabel } from '../filetypes';
+  import { formatDate, formatDateLong, formatSize } from '../format';
   import { errorText, t, type MessageKey } from '../i18n';
   import type { Pane, SortKey } from '../stores/pane.svelte';
+  import FileIcon from './FileIcon.svelte';
 
   let { pane }: { pane: Pane } = $props();
 
-  // Feste Zeilenhöhe: Grundlage der Virtualisierung.
-  const ROW = 32;
-  // Höhe der Kopfzeile, die oben im Scrollbereich haftet.
-  const HEAD = 30;
+  // Feste Maße: Grundlage der Virtualisierung.
+  const ROW = 34;
+  const HEAD = 34;
+  const PAD_TOP = 6;
+  const PAD_BOTTOM = 12;
   const OVERSCAN = 10;
 
-  const columns: { key: SortKey; label: MessageKey; numeric?: boolean }[] = [
+  const columns: { key: SortKey; label: MessageKey; right?: boolean }[] = [
     { key: 'name', label: 'col.name' },
     { key: 'modified', label: 'col.modified' },
+    { key: 'size', label: 'col.size', right: true },
     { key: 'type', label: 'col.type' },
-    { key: 'size', label: 'col.size', numeric: true },
   ];
 
   let viewport = $state<HTMLDivElement>();
@@ -25,9 +28,18 @@
   let height = $state(0);
 
   const items = $derived(pane.visible);
-  const start = $derived(Math.max(0, Math.floor(scrollTop / ROW) - OVERSCAN));
+  const start = $derived(Math.max(0, Math.floor((scrollTop - PAD_TOP) / ROW) - OVERSCAN));
   const end = $derived(Math.min(items.length, Math.ceil((scrollTop + height) / ROW) + OVERSCAN));
   const rows = $derived(items.slice(start, end));
+  const filter = $derived(pane.filter.trim());
+
+  const errorTitle = $derived.by(() => {
+    const code = pane.error?.code;
+    if (code === 'access_denied' || code === 'not_found') {
+      return t(`error.title.${code}`, { name: pane.title || pane.path });
+    }
+    return t('error.title');
+  });
 
   // Neuer Ordner: wieder oben anfangen.
   $effect(() => {
@@ -38,10 +50,13 @@
 
   function reveal(index: number) {
     if (!viewport || index < 0) return;
-    const top = index * ROW;
-    if (top < viewport.scrollTop) viewport.scrollTop = top;
-    else if (top + ROW > viewport.scrollTop + height - HEAD) {
-      viewport.scrollTop = top + ROW - height + HEAD;
+    const top = PAD_TOP + index * ROW;
+    const visible = height - HEAD;
+    if (top < viewport.scrollTop) viewport.scrollTop = Math.max(0, top - PAD_TOP);
+    else if (top + ROW > viewport.scrollTop + visible) {
+      // Beim letzten Eintrag den unteren Rand mit zeigen.
+      const extra = index === items.length - 1 ? PAD_BOTTOM : 0;
+      viewport.scrollTop = top + ROW - visible + extra;
     }
   }
 
@@ -58,7 +73,7 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
-    const page = Math.max(1, Math.floor(height / ROW) - 1);
+    const page = Math.max(1, Math.floor((height - HEAD) / ROW) - 1);
     const cursor = pane.cursor;
     let target: number | null = null;
 
@@ -106,70 +121,80 @@
   }
 </script>
 
-<section class="list" aria-busy={pane.loading}>
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <div
-    class="viewport"
-    bind:this={viewport}
-    bind:clientHeight={height}
-    onscroll={() => (scrollTop = viewport?.scrollTop ?? 0)}
-    onkeydown={onKeydown}
-    tabindex="0"
-    role="grid"
-    aria-rowcount={items.length}
-    aria-multiselectable="true"
-  >
-    <div class="head" role="row">
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div
+  class="viewport"
+  bind:this={viewport}
+  bind:clientHeight={height}
+  onscroll={() => (scrollTop = viewport?.scrollTop ?? 0)}
+  onkeydown={onKeydown}
+  tabindex="0"
+  role="grid"
+  aria-busy={pane.loading}
+  aria-rowcount={items.length}
+  aria-multiselectable="true"
+>
+  {#if pane.error}
+    <div class="center">
+      <div class="bigic err">
+        {#if pane.error.code === 'access_denied'}
+          <Lock size={38} strokeWidth={1.5} />
+        {:else}
+          <CircleAlert size={38} strokeWidth={1.5} />
+        {/if}
+      </div>
+      <h2>{errorTitle}</h2>
+      <p>{errorText(pane.error.code)}</p>
+      <div class="actions">
+        {#if pane.canBack}
+          <button class="btn" onclick={() => pane.back()}>{t('error.back')}</button>
+        {/if}
+        <button class="btn pri" onclick={() => pane.refresh()}>{t('error.retry')}</button>
+      </div>
+    </div>
+  {:else if items.length === 0}
+    <div class="center">
+      {#if pane.loading}
+        <p>{t('list.loading')}</p>
+      {:else if filter}
+        <div class="bigic"><Search size={38} strokeWidth={1.5} /></div>
+        <h2>{t('list.noMatch', { filter })}</h2>
+        <p>{t('list.noMatchHint')}</p>
+        <div class="actions">
+          <button class="btn" onclick={() => (pane.filter = '')}>{t('list.resetFilter')}</button>
+        </div>
+      {:else}
+        <div class="bigic"><Folder size={38} strokeWidth={1.5} /></div>
+        <h2>{t('list.empty')}</h2>
+        <p>{t('list.emptyHint')}</p>
+      {/if}
+    </div>
+  {:else}
+    <div class="lgrid lhead" role="row">
       {#each columns as column (column.key)}
-        <button
-          class="th"
-          class:numeric={column.numeric}
-          class:sorted={pane.sortKey === column.key}
-          onclick={() => pane.setSort(column.key)}
-        >
-          <span>{t(column.label)}</span>
+        <button class="hc" class:r={column.right} role="columnheader" onclick={() => pane.setSort(column.key)}>
+          {t(column.label)}
           {#if pane.sortKey === column.key}
-            {#if pane.sortAsc}
-              <ChevronUp size={12} strokeWidth={2} />
-            {:else}
-              <ChevronDown size={12} strokeWidth={2} />
-            {/if}
+            <span class="dir" class:up={pane.sortAsc}><ChevronDown size={16} strokeWidth={1.7} /></span>
           {/if}
         </button>
       {/each}
     </div>
 
-    {#if pane.error}
-      <div class="message">
-        <CircleAlert size={30} strokeWidth={1.5} />
-        <strong>{t('error.title')}</strong>
-        <span>{errorText(pane.error.code)}</span>
-        <button class="retry" onclick={() => pane.refresh()}>{t('error.retry')}</button>
-      </div>
-    {:else if items.length === 0}
-      <div class="message">
-        {#if pane.loading}
-          <span>{t('list.loading')}</span>
-        {:else if pane.filter.trim()}
-          <span>{t('list.noMatch', { filter: pane.filter.trim() })}</span>
-        {:else}
-          <span>{t('list.empty')}</span>
-        {/if}
-      </div>
-    {:else}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <div
-        class="spacer"
-        style:height="{items.length * ROW}px"
-        role="presentation"
-        onclick={onBackgroundClick}
-      >
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="spacer"
+      style:height="{items.length * ROW + PAD_TOP + PAD_BOTTOM}px"
+      role="presentation"
+      onclick={onBackgroundClick}
+    >
+      {#key pane.revision}
         <div class="window" style:transform="translateY({start * ROW}px)" role="presentation">
           {#each rows as entry, i (entry.name)}
             {@const index = start + i}
             <div
-              class="row"
-              class:selected={pane.selected.has(entry.name)}
+              class="row lgrid"
+              class:sel={pane.selected.has(entry.name)}
               class:cursor={pane.cursor === index}
               class:dim={entry.hidden}
               role="row"
@@ -179,187 +204,201 @@
               onclick={(event) => onRowClick(event, index)}
               ondblclick={(event) => onRowDblClick(event, entry)}
             >
-              <div class="cell name" role="gridcell">
-                {#if entry.isDir && entry.isLink}
-                  <span class="glyph folder"><FolderSymlink size={17} strokeWidth={1.6} /></span>
-                {:else if entry.isDir}
-                  <span class="glyph folder"><Folder size={17} strokeWidth={1.6} fill="currentColor" fill-opacity="0.22" /></span>
-                {:else}
-                  <span class="glyph"><File size={17} strokeWidth={1.4} /></span>
-                {/if}
-                <span class="text" title={entry.name}>{entry.name}</span>
-              </div>
-              <div class="cell" role="gridcell">{formatDate(entry.modifiedMs)}</div>
-              <div class="cell" role="gridcell">{typeLabel(entry)}</div>
-              <div class="cell numeric" role="gridcell">{entry.isDir ? '' : formatSize(entry.size)}</div>
+              <span class="c-name" role="gridcell">
+                <FileIcon {entry} />
+                <span class="nm" title={entry.name}>{entry.name}</span>
+              </span>
+              <span class="c-meta" role="gridcell" title={formatDateLong(entry.modifiedMs)}>
+                {formatDate(entry.modifiedMs)}
+              </span>
+              <span class="c-meta c-size" role="gridcell">{entry.isDir ? '—' : formatSize(entry.size)}</span>
+              <span class="c-meta" role="gridcell">{typeLabel(entry)}</span>
             </div>
           {/each}
         </div>
-      </div>
-    {/if}
-  </div>
-</section>
+      {/key}
+    </div>
+  {/if}
+</div>
 
 <style>
-  .list {
-    --cols: minmax(180px, 1fr) 150px 150px 96px;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr);
+  .viewport {
+    flex: 1;
     min-height: 0;
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    outline: none;
   }
 
-  .head,
-  .row {
+  .lgrid {
     display: grid;
-    grid-template-columns: var(--cols);
-    column-gap: 12px;
+    grid-template-columns: minmax(200px, 1fr) 160px 90px 210px;
     align-items: center;
+    column-gap: 12px;
   }
 
-  .head {
+  .lhead {
     position: sticky;
     top: 0;
     z-index: 1;
-    height: 30px;
-    padding: 0 20px;
+    height: 34px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
     background: var(--surface);
+    font-size: 12px;
   }
 
-  .th {
+  .hc {
+    justify-self: start;
     display: flex;
     align-items: center;
     gap: 4px;
-    height: 100%;
-    min-width: 0;
-    font-size: 12px;
-    color: var(--text-2);
-    text-align: left;
-    transition: color var(--fast) var(--ease);
+    height: 26px;
+    padding: 0 6px;
+    margin-left: -6px;
+    border-radius: var(--r-sm);
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+    transition:
+      background var(--t-hover),
+      color var(--t-hover);
   }
 
-  .th:hover,
-  .th.sorted {
+  .hc:hover {
+    background: var(--hover);
     color: var(--text);
   }
 
-  .th.numeric {
-    justify-content: flex-end;
+  .hc.r {
+    justify-self: end;
+    flex-direction: row-reverse;
+    margin: 0 -6px 0 0;
   }
 
-  .viewport {
-    overflow-y: scroll;
-    overflow-x: hidden;
-    outline: none;
-    position: relative;
+  .dir {
+    display: flex;
+    transition: transform var(--t-select);
+  }
+
+  .dir.up {
+    transform: rotate(180deg);
   }
 
   .spacer {
     position: relative;
-    min-height: calc(100% - 30px);
+    min-height: calc(100% - 34px);
   }
 
   .window {
     position: absolute;
-    inset: 0 0 auto 0;
-    padding: 0 8px;
+    inset: 6px 12px auto;
     will-change: transform;
+    animation: swap var(--t-expand) ease-out;
+  }
+
+  @keyframes swap {
+    from {
+      opacity: 0;
+      margin-top: 4px;
+    }
   }
 
   .row {
-    height: 32px;
+    height: 34px;
     padding: 0 12px;
-    border-radius: var(--radius-s);
+    border-radius: var(--r-btn);
     outline: none;
+    transition: background 120ms;
   }
 
   .row:hover {
     background: var(--hover);
   }
 
-  .row.selected {
-    background: var(--accent-soft);
-  }
-
-  .row.selected:hover {
-    background: var(--accent-soft-strong);
+  .row.sel {
+    background: var(--sel);
   }
 
   .viewport:focus-visible .row.cursor {
-    box-shadow: inset 0 0 0 1.5px var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
-  .cell {
+  .c-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     min-width: 0;
+  }
+
+  .nm,
+  .c-meta {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--text-2);
   }
 
-  .cell.name {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    color: var(--text);
+  .c-meta {
+    color: var(--muted);
+    font-size: 13px;
   }
 
-  .cell.numeric {
+  .c-size {
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
 
-  .text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .glyph {
-    flex: none;
-    display: grid;
-    color: var(--text-3);
-  }
-
-  .glyph.folder {
-    color: var(--folder);
-  }
-
-  .row.dim .name,
-  .row.dim .glyph {
+  .row.dim .c-name {
     opacity: 0.55;
   }
 
-  .message {
+  .center {
     position: absolute;
-    inset: 30px 0 0;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 24px;
+    gap: 10px;
+    padding: 32px;
     text-align: center;
-    color: var(--text-2);
+    animation: swap var(--t-expand) ease-out;
   }
 
-  .message strong {
-    margin-top: 6px;
-    font-family: var(--font-display);
-    font-size: 15px;
+  .center h2 {
+    margin: 6px 0 0;
+    font-size: 18px;
     font-weight: 600;
-    color: var(--text);
+    overflow-wrap: anywhere;
   }
 
-  .retry {
-    margin-top: 12px;
-    padding: 6px 14px;
-    border-radius: var(--radius-m);
-    background: var(--field);
-    color: var(--text);
-    transition: background var(--fast) var(--ease);
+  .center p {
+    margin: 0;
+    max-width: 340px;
+    color: var(--muted);
   }
 
-  .retry:hover {
-    background: var(--active);
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .bigic {
+    width: 84px;
+    height: 84px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .bigic.err {
+    background: var(--err-bg);
+    color: var(--err);
   }
 </style>

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { ArrowUp, ChevronLeft, ChevronRight, Eye, EyeOff, RotateCw, Search } from '@lucide/svelte';
+  import { ArrowLeft, ArrowRight, ArrowUp, Search, X } from '@lucide/svelte';
   import { t } from '../i18n';
   import type { Pane } from '../stores/pane.svelte';
   import Breadcrumb from './Breadcrumb.svelte';
-  import WindowControls from './WindowControls.svelte';
+  import SortMenu from './SortMenu.svelte';
 
   let { pane }: { pane: Pane } = $props();
 
@@ -26,150 +26,102 @@
   }
 </script>
 
-<header class="toolbar" data-tauri-drag-region>
-  <div class="group">
-    <button class="icon" title={t('nav.back')} aria-label={t('nav.back')} disabled={!pane.canBack} onclick={() => pane.back()}>
-      <ChevronLeft size={18} strokeWidth={1.75} />
+<div class="toolbar">
+  <div class="navpair">
+    <button class="icon-btn" title={t('nav.back')} aria-label={t('nav.back')} disabled={!pane.canBack} onclick={() => pane.back()}>
+      <ArrowLeft size={18} strokeWidth={1.7} />
     </button>
-    <button class="icon" title={t('nav.forward')} aria-label={t('nav.forward')} disabled={!pane.canForward} onclick={() => pane.forward()}>
-      <ChevronRight size={18} strokeWidth={1.75} />
+    <button class="icon-btn" title={t('nav.forward')} aria-label={t('nav.forward')} disabled={!pane.canForward} onclick={() => pane.forward()}>
+      <ArrowRight size={18} strokeWidth={1.7} />
     </button>
-    <button class="icon" title={t('nav.up')} aria-label={t('nav.up')} disabled={!pane.canUp} onclick={() => pane.up()}>
-      <ArrowUp size={17} strokeWidth={1.75} />
-    </button>
-    <button class="icon" title={t('nav.refresh')} aria-label={t('nav.refresh')} onclick={() => pane.refresh()}>
-      <span class="spin" class:spinning={pane.loading}><RotateCw size={15} strokeWidth={1.75} /></span>
+    <button class="icon-btn" title={t('nav.up')} aria-label={t('nav.up')} disabled={!pane.canUp} onclick={() => pane.up()}>
+      <ArrowUp size={18} strokeWidth={1.7} />
     </button>
   </div>
 
   <Breadcrumb bind:this={breadcrumb} path={pane.path} onnavigate={(path) => pane.navigate(path)} />
 
-  <label class="filter">
-    <Search size={14} strokeWidth={1.75} />
+  <SortMenu {pane} />
+
+  <label class="search" title={t('nav.filterTitle')}>
+    <Search size={16} strokeWidth={1.7} />
     <input
       bind:this={filterInput}
       bind:value={pane.filter}
+      type="text"
       placeholder={t('nav.filter')}
       aria-label={t('nav.filter')}
       spellcheck="false"
       autocomplete="off"
       onkeydown={onFilterKeydown}
     />
-  </label>
-
-  <button
-    class="icon"
-    class:on={pane.showHidden}
-    title={pane.showHidden ? t('nav.hideHidden') : t('nav.showHidden')}
-    aria-label={pane.showHidden ? t('nav.hideHidden') : t('nav.showHidden')}
-    aria-pressed={pane.showHidden}
-    onclick={() => (pane.showHidden = !pane.showHidden)}
-  >
-    {#if pane.showHidden}
-      <Eye size={16} strokeWidth={1.75} />
-    {:else}
-      <EyeOff size={16} strokeWidth={1.75} />
+    {#if pane.filter}
+      <button class="icon-btn clear" title={t('nav.clearFilter')} aria-label={t('nav.clearFilter')} onclick={() => (pane.filter = '')}>
+        <X size={16} strokeWidth={1.7} />
+      </button>
     {/if}
-  </button>
-
-  <WindowControls />
-</header>
+  </label>
+</div>
 
 <style>
   .toolbar {
+    height: 56px;
+    flex: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 48px;
-    padding: 8px 8px 8px 12px;
+    gap: 10px;
+    padding: 0 14px;
     border-bottom: 1px solid var(--border);
   }
 
-  .group {
+  .navpair {
     display: flex;
     gap: 2px;
   }
 
-  .icon {
+  .search {
+    width: 190px;
     flex: none;
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-m);
-    color: var(--text-2);
-    transition:
-      background var(--fast) var(--ease),
-      color var(--fast) var(--ease),
-      opacity var(--fast) var(--ease);
-  }
-
-  .icon:hover:not(:disabled) {
-    background: var(--hover);
-    color: var(--text);
-  }
-
-  .icon:active:not(:disabled) {
-    background: var(--active);
-  }
-
-  .icon:disabled {
-    opacity: 0.35;
-  }
-
-  .icon.on {
-    color: var(--accent);
-    background: var(--accent-soft);
-  }
-
-  .spin {
-    display: grid;
-  }
-
-  .spin.spinning {
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .filter {
-    flex: 0 1 220px;
-    min-width: 120px;
-    height: 32px;
+    height: 34px;
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 0 10px;
-    border-radius: var(--radius-m);
-    background: var(--field);
-    color: var(--text-3);
+    gap: 8px;
+    padding: 0 8px 0 10px;
+    border-radius: var(--r-btn);
+    background: var(--surface-2);
+    color: var(--muted);
     cursor: text;
     transition:
-      background var(--fast) var(--ease),
-      box-shadow var(--fast) var(--ease);
+      box-shadow var(--t-hover),
+      background var(--t-hover);
   }
 
-  .filter:focus-within {
-    background: var(--field-focus);
+  .search:focus-within {
+    background: var(--surface);
     box-shadow: 0 0 0 2px var(--accent);
   }
 
-  .filter input {
+  .search :global(svg) {
+    flex: none;
+  }
+
+  .search input {
     flex: 1;
     min-width: 0;
     border: 0;
-    outline: 0;
+    outline: none;
     background: transparent;
     color: var(--text);
     user-select: text;
     -webkit-user-select: text;
   }
 
-  .filter input::placeholder {
-    color: var(--text-3);
+  .search input::placeholder {
+    color: var(--muted);
+  }
+
+  .clear {
+    width: 24px;
+    height: 24px;
   }
 </style>

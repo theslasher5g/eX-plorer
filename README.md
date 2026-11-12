@@ -3,9 +3,13 @@
 Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
 Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
-> **Stand: Phase 1 von 7.** Fenster, Theme, Seitenleiste, Ordner auflisten und
-> navigieren. Dateioperationen, Tabs, echte Icons, Baumansicht, OneDrive-Status
-> und Netzwerk folgen in den nächsten Phasen (siehe [Fahrplan](#fahrplan)).
+> **Stand: Phase 1 von 7.** Fenster, Theme, Seitenleiste, Tabs, Ordner auflisten
+> und navigieren. Dateioperationen, echte Icons, weitere Ansichten, Baumansicht,
+> OneDrive-Status und Netzwerk folgen in den nächsten Phasen (siehe
+> [Fahrplan](#fahrplan)).
+
+Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
+Bewegung) stehen in `src/app.css`, hell und dunkel folgen automatisch dem System.
 
 ## Voraussetzungen
 
@@ -75,10 +79,11 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | Zurück / Vor | Alt+Links / Alt+Rechts, Maustasten 4/5 |
 | Übergeordneter Ordner | Alt+Hoch oder Rücktaste |
 | Pfad eintippen | Strg+L oder F4, oder Klick rechts neben den Pfad |
-| Im Ordner filtern | Strg+F |
+| Im Ordner suchen | Strg+F |
+| Neuer Tab / Tab schließen / Tab wechseln | Strg+T / Strg+W oder Mittelklick / Strg+Tab |
 | Aktualisieren | F5 |
 | Auswahl | Klick, Strg+Klick, Umschalt+Klick, Pfeiltasten, Strg+A |
-| Sortieren | Klick auf eine Spaltenüberschrift |
+| Sortieren, versteckte Elemente anzeigen | Spaltenüberschrift oder Sortier-Menü in der Werkzeugleiste |
 
 ## Aufbau
 
@@ -95,8 +100,10 @@ src-tauri/
   capabilities/       Tauri-Berechtigungen des Fensters
 src/
   lib/api/            Typisierte Backend-Schnittstelle, Demo-Backend für den Browser
-  lib/stores/         Zustand einer Ordneransicht
-  lib/components/     Seitenleiste, Werkzeugleiste, Pfadleiste, Liste, Statusleiste
+  lib/stores/         Zustand einer Ordneransicht (Pane) und der Tabs
+  lib/components/     Titelleiste mit Tabs, Seitenleiste, Werkzeugleiste, Pfadleiste,
+                      Sortier-Menü, Liste, Statusleiste
+  app.css             Design-Tokens und gemeinsame Bausteine
   lib/i18n/           Texte (derzeit Deutsch)
 ```
 
@@ -123,9 +130,13 @@ src/
 ## Bekannte Einschränkungen
 
 - **Phase 1 öffnet keine Dateien** und kann nichts kopieren, verschieben oder
-  löschen. Es gibt nur die Listenansicht und noch keine Tabs.
-- **Symbole sind Platzhalter** (Lucide). Echte Windows-Icons und Thumbnails
-  kommen in Phase 3; die Typ-Spalte leitet sich bis dahin aus der Endung ab.
+  löschen. Es gibt nur die Listenansicht; Kacheln, Spalten und Baum aus dem
+  Design folgen, ebenso Einstellungen und der Netzwerk-Eintrag der Seitenleiste.
+- **Symbole sind gezeichnet, nicht von Windows**: Ordnersymbol und farbige
+  Typ-Kürzel aus dem Design. Echte Windows-Icons und Thumbnails kommen in
+  Phase 3; die Typ-Spalte leitet sich bis dahin aus der Endung ab.
+- **Tabs** merken sich Pfad, Verlauf, Sortierung und Auswahl, aber nicht die
+  Scrollposition, und werden beim Beenden nicht gespeichert.
 - **Keine Live-Aktualisierung**: Änderungen im Ordner erscheinen erst nach F5.
 - **Netzlaufwerke** werden in der Seitenleiste angezeigt, aber noch ohne
   Timeout und Offline-Status geöffnet. Ein nicht erreichbares Laufwerk friert
@@ -139,13 +150,14 @@ src/
   Hintergrund. Wegen der eigenen Titelleiste fehlt das Snap-Layout-Flyout beim
   Überfahren von „Maximieren“ (Win+Z und Ziehen an den Rand funktionieren).
 - **Getestet** wurde bisher: Kernlogik per Unit-Tests, Windows-Code per
-  Cross-Check und CI, Oberfläche im Browser gegen das Demo-Backend (auch mit
-  100.000 Einträgen). Ein Test der fertigen App auf echtem Windows steht aus.
+  Cross-Kompilierprüfung unter Linux, Oberfläche im Browser gegen das
+  Demo-Backend (auch mit 100.000 Einträgen). Ein Test der fertigen App auf
+  echtem Windows steht aus.
 
 ## Fahrplan
 
 1. ✅ Projekt-Setup, Fenster, Theme, Seitenleiste, Ordner auflisten und navigieren
-2. Dateioperationen, Drag & Drop, Tabs
+2. Dateioperationen, Drag & Drop (Tabs sind bereits enthalten)
 3. Icons, Thumbnails, Kontextmenü, Schnellvorschau
 4. Baumansicht mit Limits, Abbruch und Export
 5. OneDrive-Integration

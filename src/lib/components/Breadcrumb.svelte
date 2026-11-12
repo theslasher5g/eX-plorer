@@ -9,14 +9,14 @@
   let editing = $state(false);
   let draft = $state('');
   let input = $state<HTMLInputElement>();
-  let trail = $state<HTMLDivElement>();
+  let box = $state<HTMLDivElement>();
 
   const crumbs = $derived(splitPath(path));
 
   // Bei langen Pfaden bleibt das Ende (der aktuelle Ordner) sichtbar.
   $effect(() => {
     void crumbs;
-    if (trail) trail.scrollLeft = trail.scrollWidth;
+    if (box && !editing) box.scrollLeft = box.scrollWidth;
   });
 
   export async function edit() {
@@ -39,111 +39,99 @@
     event.preventDefault();
     event.stopPropagation();
   }
+
+  // Klick auf die freie Fläche der Pfadleiste schaltet auf das Textfeld um.
+  function onBoxClick(event: MouseEvent) {
+    if (event.target === event.currentTarget) void edit();
+  }
 </script>
 
-<div class="field" class:editing>
-  {#if editing}
+{#if editing}
+  <div class="crumbbox editing">
     <input
       bind:this={input}
       bind:value={draft}
+      class="pathinput"
       aria-label={t('nav.path')}
       spellcheck="false"
       autocomplete="off"
       onkeydown={onKeydown}
       onblur={() => (editing = false)}
     />
-  {:else}
-    <div class="trail" bind:this={trail}>
-      {#each crumbs as crumb, i (crumb.path)}
-        {#if i > 0}
-          <span class="sep"><ChevronRight size={12} strokeWidth={2} /></span>
-        {/if}
-        <button
-          class="crumb"
-          class:last={i === crumbs.length - 1}
-          onclick={() => onnavigate(crumb.path)}
-        >
-          {crumb.label}
-        </button>
-      {/each}
-    </div>
-    <button class="rest" title={t('nav.editPath')} aria-label={t('nav.editPath')} onclick={edit}></button>
-  {/if}
-</div>
+  </div>
+{:else}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="crumbbox" bind:this={box} title={t('nav.editPath')} onclick={onBoxClick}>
+    {#each crumbs as crumb, i (crumb.path)}
+      {#if i > 0}
+        <span class="crumbsep"><ChevronRight size={14} strokeWidth={1.7} /></span>
+      {/if}
+      <button class="crumb" class:last={i === crumbs.length - 1} title={crumb.path} onclick={() => onnavigate(crumb.path)}>
+        {crumb.label}
+      </button>
+    {/each}
+  </div>
+{/if}
 
 <style>
-  .field {
+  .crumbbox {
     flex: 1;
     min-width: 0;
-    height: 32px;
+    height: 34px;
     display: flex;
     align-items: center;
-    border-radius: var(--radius-m);
-    background: var(--field);
-    transition:
-      background var(--fast) var(--ease),
-      box-shadow var(--fast) var(--ease);
-  }
-
-  .field.editing {
-    background: var(--field-focus);
-    box-shadow: 0 0 0 2px var(--accent);
-  }
-
-  input {
-    width: 100%;
-    height: 100%;
-    padding: 0 10px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-
-  .trail {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    padding: 0 4px;
+    gap: 2px;
+    padding: 0 6px;
+    border-radius: var(--r-btn);
+    background: var(--surface-2);
     overflow: hidden;
+    cursor: text;
+    transition:
+      background var(--t-hover),
+      box-shadow var(--t-hover);
+  }
+
+  .crumbbox.editing {
+    background: var(--surface);
+    box-shadow: 0 0 0 2px var(--accent);
   }
 
   .crumb {
     flex: none;
-    max-width: 220px;
-    padding: 3px 6px;
-    border-radius: var(--radius-s);
-    color: var(--text-2);
+    max-width: 240px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: var(--r-sm);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    transition:
-      background var(--fast) var(--ease),
-      color var(--fast) var(--ease);
+    transition: background var(--t-hover);
   }
 
   .crumb:hover {
     background: var(--hover);
-    color: var(--text);
   }
 
   .crumb.last {
-    color: var(--text);
     font-weight: 600;
   }
 
-  .sep {
+  .crumbsep {
     flex: none;
-    display: grid;
-    color: var(--text-3);
+    display: flex;
+    color: var(--muted);
+    pointer-events: none;
   }
 
-  .rest {
+  .pathinput {
     flex: 1;
-    min-width: 24px;
-    align-self: stretch;
-    cursor: text;
-    border-radius: var(--radius-m);
+    min-width: 0;
+    height: 28px;
+    padding: 0 6px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    user-select: text;
+    -webkit-user-select: text;
   }
 </style>
