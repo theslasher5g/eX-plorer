@@ -13,6 +13,8 @@ pub mod listing;
 pub mod ops;
 pub mod path;
 pub mod preview;
+pub mod settings;
+pub mod tree;
 pub mod watch;
 pub mod winerr;
 

@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { Component } from 'svelte';
-  import { Cloud, Disc, Download, FileText, HardDrive, Image, Monitor, Network, Usb } from '@lucide/svelte';
+  import { Cloud, Disc, Download, FileText, HardDrive, Image, Monitor, Network, SlidersHorizontal, Usb } from '@lucide/svelte';
   import type { Drive, DriveKind, PlaceKind, SidebarData } from '../api';
   import { formatSize } from '../format';
   import { t } from '../i18n';
   import { samePath } from '../paths';
   import { dnd } from '../stores/dnd.svelte';
+  import { settings } from '../stores/settings.svelte';
 
   let {
     data,
@@ -81,6 +82,11 @@
       {/each}
     {/if}
   {/if}
+  <div class="gap"></div>
+  <button class="nav" title={t('settings.open')} onclick={() => settings.open()}>
+    <SlidersHorizontal size={18} strokeWidth={1.7} />
+    <span>{t('sidebar.settings')}</span>
+  </button>
 </aside>
 
 <style>
@@ -89,6 +95,10 @@
     flex: none;
     padding: 6px 10px 12px;
     overflow: auto;
+  }
+
+  .gap {
+    height: 14px;
   }
 
   .gtitle {

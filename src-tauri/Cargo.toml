@@ -36,6 +36,7 @@ explorer-core = { path = "crates/core" }
 serde.workspace = true
 thiserror.workspace = true
 tauri = { version = "2", features = [] }
+serde_json = "1"
 url = "2"
 
 [target.'cfg(windows)'.dependencies]

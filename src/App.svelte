@@ -6,14 +6,18 @@
   import { dnd } from './lib/stores/dnd.svelte';
   import { ops } from './lib/stores/ops.svelte';
   import { quicklook } from './lib/stores/quicklook.svelte';
+  import { settings } from './lib/stores/settings.svelte';
   import { Tabs } from './lib/stores/tabs.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
   import FileList from './lib/components/FileList.svelte';
   import QuickLook from './lib/components/QuickLook.svelte';
+  import SettingsDialog from './lib/components/SettingsDialog.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   import StatusBar from './lib/components/StatusBar.svelte';
   import TitleBar from './lib/components/TitleBar.svelte';
+  import TileGrid from './lib/components/TileGrid.svelte';
   import Toast from './lib/components/Toast.svelte';
+  import TreeView from './lib/components/TreeView.svelte';
   import Toolbar from './lib/components/Toolbar.svelte';
 
   const tabs = new Tabs();
@@ -32,6 +36,7 @@
 
     void (async () => {
       const api = await getApi();
+      await settings.load();
       const info = await api.appInfo();
       document.documentElement.dataset.material = info.material;
       home = info.homeDir;
@@ -74,7 +79,7 @@
 
   function onKeydown(event: KeyboardEvent) {
     // Solange ein Dialog offen ist, gehört ihm die Tastatur.
-    if (dialogs.confirmState || quicklook.isOpen) return;
+    if (dialogs.confirmState || quicklook.isOpen || settings.dialog) return;
     const { altKey, ctrlKey, shiftKey } = event;
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     let handled = true;
@@ -85,9 +90,15 @@
     else if ((ctrlKey && key === 'l') || key === 'F4') toolbar?.editPath();
     else if (ctrlKey && key === 'f') toolbar?.focusFilter();
     else if (ctrlKey && key === 't') newTab();
+    else if (ctrlKey && key === ',') settings.open();
+    else if (ctrlKey && key === '1') pane.view = 'list';
+    else if (ctrlKey && key === '2') pane.view = 'grid';
+    else if (ctrlKey && key === '3') pane.view = 'tree';
     else if (ctrlKey && key === 'w') tabs.close(tabs.active);
     else if (ctrlKey && key === 'Tab') tabs.cycle(shiftKey ? -1 : 1);
     else if (isTextInput(event.target)) handled = false;
+    // Die Baumansicht hat eine eigene Auswahl; Dateioperationen gibt es dort nicht.
+    else if (pane.view === 'tree') handled = key === 'Backspace' ? (void pane.up(), true) : false;
     else if (key === 'Backspace') void pane.up();
     else if (ctrlKey && shiftKey && key === 'n') void ops.newFolder();
     else if (ctrlKey && key === 'c') void ops.copy(false);
@@ -121,7 +132,13 @@
     <section class="right">
       <Toolbar bind:this={toolbar} {pane} />
       {#key pane.id}
-        <FileList {pane} />
+        {#if pane.view === 'tree'}
+          <TreeView {pane} />
+        {:else if pane.view === 'grid'}
+          <TileGrid {pane} />
+        {:else}
+          <FileList {pane} />
+        {/if}
       {/key}
       <StatusBar {pane} />
     </section>
@@ -129,6 +146,7 @@
 </div>
 
 <QuickLook />
+<SettingsDialog />
 <ConfirmDialog />
 <Toast />
 

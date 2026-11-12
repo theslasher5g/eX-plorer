@@ -171,13 +171,18 @@ class Ops {
       void pane.navigate(path);
       return;
     }
+    await this.openFile(path, entry.name);
+  }
+
+  /** Öffnet eine Datei mit dem Standardprogramm (ausführbare Typen nach Rückfrage). */
+  async openFile(path: string, name: string): Promise<void> {
     try {
       const api = await getApi();
       const result = await api.openItem(path, false);
       if (!result.needsConfirm) return;
       // Ausführbare Dateitypen nur nach ausdrücklicher Bestätigung.
       const confirmed = await dialogs.confirm({
-        title: t('open.confirmTitle', { name: entry.name }),
+        title: t('open.confirmTitle', { name }),
         body: t('open.confirmBody'),
         confirm: t('open.confirm'),
         cancel: t('delete.cancel'),
@@ -213,6 +218,21 @@ class Ops {
           await this.#runVerb(pane, outcome.verb, selected);
           break;
         default:
+      }
+    } catch (err) {
+      this.#fail(err);
+    }
+  }
+
+  /** Natives Kontextmenü für eine Zeile der Baumansicht. */
+  async treeContextMenu(pane: Pane, path: string, name: string, isDir: boolean): Promise<void> {
+    try {
+      const outcome = await (await getApi()).contextMenu([path], null, isDir ? t('menu.newTab') : null);
+      if (outcome.kind === 'newTab') this.#tabs?.open(path);
+      else if (outcome.kind === 'done') void pane.tree.start(pane.tree.root);
+      else if (outcome.kind === 'verb' && outcome.verb === 'open') {
+        if (isDir) void pane.navigate(path);
+        else await this.openFile(path, name);
       }
     } catch (err) {
       this.#fail(err);

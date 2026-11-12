@@ -1,6 +1,15 @@
 // Demo-Backend für die Entwicklung im Browser. Wird nur im Dev-Modus geladen
 // und greift auf kein echtes Dateisystem zu.
-import type { Api, ClipboardFiles, DragDropEvent, Entry, MenuOutcome, PreviewInfo } from './types';
+import type {
+  Api,
+  ClipboardFiles,
+  DragDropEvent,
+  Entry,
+  MenuOutcome,
+  PreviewInfo,
+  Settings,
+  TreeEntry,
+} from './types';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 10, 12, 9, 30);
@@ -84,7 +93,15 @@ const tree: Record<string, Entry[]> = {
   'D:\\': [d('Backups', 7), d('Medien', 30)],
   'E:\\': [f('Foto.jpg', 2_048_000, 4), d('USB-Ordner', 9)],
   'E:\\USB-Ordner': [],
-  'C:\\Test': [d('100k', 1), d('Leer', 1)],
+  'C:\\Test': [d('100k', 1), d('Leer', 1), d('Tief', 1), d('Viele', 1)],
+  'C:\\Test\\Tief': [d('a', 1), d('Verknüpfung', 1, { isLink: true }), f('oben.txt', 10), f('.versteckt', 1, 1, { hidden: true })],
+  'C:\\Test\\Tief\\Verknüpfung': [f('ziel.txt', 1)],
+  'C:\\Test\\Tief\\a': [d('b', 1), f('a.txt', 20)],
+  'C:\\Test\\Tief\\a\\b': [d('c', 1), f('b.txt', 30)],
+  'C:\\Test\\Tief\\a\\b\\c': [d('d', 1), f('c.txt', 40)],
+  'C:\\Test\\Tief\\a\\b\\c\\d': [d('e', 1), f('d.txt', 50)],
+  'C:\\Test\\Tief\\a\\b\\c\\d\\e': [f('ganz-unten.txt', 60)],
+  'C:\\Test\\Viele': Array.from({ length: 1434 }, (_, i) => f(`datei-${String(i).padStart(4, '0')}.txt`, i)),
   'C:\\Test\\Leer': [],
 };
 
@@ -279,6 +296,29 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   });
 }
 
+// --- Baum-Scan und Einstellungen (Demo) ------------------------------------
+
+const cancelled = new Set<number>();
+let settings: Settings = { showHidden: false, treeDepth: 4, treeTotal: 2000, treePerDir: 200, tileSize: 132 };
+let clipboardText = '';
+
+function sortedChildren(dir: string, showHidden: boolean): Entry[] | undefined {
+  const k = key(dir);
+  const all = lower(dir) === 'c:\\test\\100k' ? hugeFolder() : k ? tree[k] : undefined;
+  if (!all) return undefined;
+  const sortKey = (e: Entry) => (e.isDir ? '0' : '1') + lower(e.name);
+  return all
+    .filter((e) => showHidden || !(e.hidden || e.system))
+    .sort((x, y) => (sortKey(x) < sortKey(y) ? -1 : sortKey(x) > sortKey(y) ? 1 : 0));
+}
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  Object.assign(window, {
+    __mockClipboardText: () => clipboardText,
+    __mockSettings: () => settings,
+  });
+}
+
 export const mockApi: Api = {
   async appInfo() {
     return { material: 'solid', homeDir: HOME };
@@ -441,6 +481,61 @@ export const mockApi: Api = {
     const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
     if (RISKY.includes(ext) && !confirmed) return { needsConfirm: true };
     return { needsConfirm: false };
+  },
+  async treeScan(args, onChunk) {
+    const root = norm(args.path);
+    if (lower(root) === 'c:\\windows') fail('access_denied');
+    if (!sortedChildren(root, true)) fail('not_found');
+    let budget = Math.max(1, args.total);
+    let count = 0;
+    let truncated = false;
+    const queue: { dir: string; rel: string[]; depth: number; offset: number }[] = [
+      { dir: root, rel: [], depth: 1, offset: args.offset ?? 0 },
+    ];
+    while (queue.length) {
+      const item = queue.shift()!;
+      await sleep(12);
+      if (cancelled.delete(args.scanId)) return { count, cancelled: true, truncated, remoteLimited: false };
+      if (budget === 0) {
+        truncated = true;
+        break;
+      }
+      if (lower(item.dir).endsWith('\\gesperrt')) {
+        onChunk({ rel: item.rel, entries: [], more: 0, error: 'access_denied' });
+        continue;
+      }
+      const all = sortedChildren(item.dir, args.showHidden) ?? [];
+      const take = Math.min(args.perDir, budget);
+      const shown = all.slice(item.offset, item.offset + take);
+      const more = Math.max(0, all.length - item.offset - shown.length);
+      if (more > 0 && take < args.perDir) truncated = true;
+      budget -= shown.length;
+      count += shown.length;
+      const entries: TreeEntry[] = shown.map((e) => {
+        let depthLimited = false;
+        if (e.isDir && !e.isLink) {
+          if (item.depth < args.depth) {
+            queue.push({ dir: join(item.dir, e.name), rel: [...item.rel, e.name], depth: item.depth + 1, offset: 0 });
+          } else depthLimited = true;
+        }
+        return { name: e.name, isDir: e.isDir, isLink: e.isLink, size: e.size, depthLimited };
+      });
+      onChunk({ rel: item.rel, entries, more, error: null });
+    }
+    return { count, cancelled: false, truncated, remoteLimited: false };
+  },
+  async treeCancel(scanId) {
+    cancelled.add(scanId);
+  },
+  async settingsGet() {
+    return { ...settings };
+  },
+  async settingsSet(next) {
+    settings = { ...next };
+    return { ...settings };
+  },
+  async clipboardSetText(text) {
+    clipboardText = text;
   },
   window: {
     async minimize() {},

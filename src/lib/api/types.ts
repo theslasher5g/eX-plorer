@@ -103,6 +103,54 @@ export interface OpenResult {
   needsConfirm: boolean;
 }
 
+export interface Settings {
+  /** Versteckte und Systemdateien anzeigen. */
+  showHidden: boolean;
+  treeDepth: number;
+  treeTotal: number;
+  treePerDir: number;
+  /** Kachelbreite in Pixeln. */
+  tileSize: number;
+}
+
+export interface TreeEntry {
+  name: string;
+  isDir: boolean;
+  /** Symlink oder Junction: wird nie automatisch betreten. */
+  isLink: boolean;
+  size: number;
+  /** Ordner wurde wegen des Tiefenlimits nicht gelesen. */
+  depthLimited: boolean;
+}
+
+export interface TreeChunk {
+  /** Pfad relativ zur Scan-Wurzel. */
+  rel: string[];
+  entries: TreeEntry[];
+  /** Anzahl weiterer, nicht gelieferter Einträge dieses Ordners. */
+  more: number;
+  error: string | null;
+}
+
+export interface TreeScanArgs {
+  path: string;
+  scanId: number;
+  depth: number;
+  total: number;
+  perDir: number;
+  offset?: number;
+  showHidden: boolean;
+}
+
+export interface TreeSummary {
+  count: number;
+  cancelled: boolean;
+  /** Das Gesamtlimit hat den Scan beendet. */
+  truncated: boolean;
+  /** Netzwerkpfad: Es wurde bewusst nur eine Ebene gelesen. */
+  remoteLimited: boolean;
+}
+
 export interface ApiError {
   code: string;
   message: string;
@@ -140,6 +188,11 @@ export interface Api {
   /** Zeigt das native Windows-Kontextmenü an der Mausposition. */
   contextMenu(paths: string[], folder: string | null, newTabLabel: string | null): Promise<MenuOutcome>;
   openItem(path: string, confirmed: boolean): Promise<OpenResult>;
+  treeScan(args: TreeScanArgs, onChunk: (chunk: TreeChunk) => void): Promise<TreeSummary>;
+  treeCancel(scanId: number): Promise<void>;
+  settingsGet(): Promise<Settings>;
+  settingsSet(settings: Settings): Promise<Settings>;
+  clipboardSetText(text: string): Promise<void>;
   window: WindowControls;
 }
 

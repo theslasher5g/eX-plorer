@@ -95,7 +95,7 @@
     closeButton?.focus();
     return () => {
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
-      else document.querySelector<HTMLElement>('[role="grid"]')?.focus();
+      else document.querySelector<HTMLElement>('[role="grid"], [role="tree"], [role="listbox"]')?.focus();
     };
   });
 

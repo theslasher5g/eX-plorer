@@ -120,6 +120,23 @@ pub fn set(owner: isize, paths: &[String], cut: bool) -> Result<(), ClipboardErr
     put(drop_effect_format(), &effect.to_le_bytes())
 }
 
+const CF_UNICODETEXT: u32 = 13;
+
+/// Legt reinen Text in die Zwischenablage. Windows erwartet CRLF-Zeilenenden.
+pub fn set_text(owner: isize, text: &str) -> Result<(), ClipboardError> {
+    let bytes: Vec<u8> = text
+        .replace("\r\n", "\n")
+        .replace('\n', "\r\n")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let _open = Open::new(owner)?;
+    // SAFETY: Zwischenablage ist geöffnet.
+    unsafe { EmptyClipboard() }.map_err(|_| ClipboardError::Failed)?;
+    put(CF_UNICODETEXT, &bytes)
+}
+
 pub fn clear(owner: isize) -> Result<(), ClipboardError> {
     let _open = Open::new(owner)?;
     // SAFETY: Zwischenablage ist geöffnet.

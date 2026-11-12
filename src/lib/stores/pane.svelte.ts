@@ -1,8 +1,11 @@
 import { getApi, toApiError, type ApiError, type Entry } from '../api';
 import { locale } from '../i18n';
 import { extension, joinPath, parentPath, samePath, splitPath } from '../paths';
+import { settings } from './settings.svelte';
+import { TreeState } from './tree.svelte';
 
 export type SortKey = 'name' | 'modified' | 'type' | 'size';
+export type ViewMode = 'list' | 'grid' | 'tree';
 
 const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
 
@@ -22,7 +25,18 @@ export class Pane {
   sortKey = $state<SortKey>('name');
   sortAsc = $state(true);
   filter = $state('');
-  showHidden = $state(false);
+  view = $state<ViewMode>('list');
+  /** Zustand der Baumansicht dieses Tabs. */
+  readonly tree = new TreeState();
+
+  /** Versteckte Elemente anzeigen: eine globale Einstellung. */
+  get showHidden(): boolean {
+    return settings.value.showHidden;
+  }
+
+  set showHidden(value: boolean) {
+    settings.update({ showHidden: value });
+  }
 
   /** Name des Eintrags, der gerade umbenannt wird. */
   renaming = $state<string | null>(null);

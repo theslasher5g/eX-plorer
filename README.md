@@ -3,10 +3,10 @@
 Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
 Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
-> **Stand: Phase 3 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
+> **Stand: Phase 4 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
 > Dateioperationen, Drag & Drop, Live-Aktualisierung, Windows-Icons, natives
-> Kontextmenü, Öffnen von Dateien und Schnellvorschau (Bild, Text, PDF).
-> Weitere Ansichten, Baumansicht, OneDrive-Status und Netzwerk folgen (siehe
+> Kontextmenü, Schnellvorschau, Listen-, Kachel- und Baumansicht mit Limits,
+> Einstellungen. OneDrive-Status und Netzwerk folgen (siehe
 > [Fahrplan](#fahrplan)).
 
 Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
@@ -93,6 +93,9 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | In andere Programme ziehen | Ausgewählte Dateien aus der Liste ziehen |
 | Datei öffnen | Doppelklick oder Eingabetaste (ausführbare Typen erst nach Rückfrage) |
 | Schnellvorschau | Leertaste; Pfeiltasten wechseln die Datei, Bild auf/ab bei PDF-Seiten, Esc oder Leertaste schließen |
+| Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Baum, oder der Umschalter in der Werkzeugleiste |
+| Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
+| Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
 | Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge) |
 
 ## Aufbau
@@ -103,6 +106,8 @@ src-tauri/
     src/path/         Pfadvalidierung und -normalisierung
     src/listing/      Ordner auflisten (Windows: FindFirstFileExW)
     src/ops/          Planung von Kopieren/Verschieben/Löschen/Umbenennen, Neuer Ordner
+    src/tree/         Baum-Scan mit Limits (Tiefe, gesamt, pro Ordner), abbrechbar
+    src/settings.rs   Einstellungen mit erzwungenen Wertebereichen
     src/preview.rs    Vorschau-Regeln (Art, Limits) und sichere Text-Dekodierung
     src/imaging.rs    BGRA → PNG für Icons und Thumbnails
     src/exec.rs       Welche Dateitypen beim Öffnen eine Rückfrage brauchen
@@ -158,6 +163,11 @@ src/
   Ausgeführt wird über die Windows-Shell, die Papierkorb und Konflikte kennt.
 - **Löschen fragt immer nach.** Wo es keinen Papierkorb gibt (Netzlaufwerk, USB,
   UNC), sagt der Dialog das deutlich; die Shell fragt zusätzlich selbst.
+- **Baum-Scan ist begrenzt und abbrechbar.** Tiefe, Gesamtzahl und Einträge
+  pro Ordner werden im Backend erzwungen (auch gegen manipulierte Aufrufe),
+  Symlinks und Junctions nie automatisch betreten, auf Netzlaufwerken wird
+  automatisch nur eine Ebene gelesen. Der Speicherbedarf pro Ordner hängt
+  nicht von dessen Größe ab.
 - **Strikte CSP**, keine Remote-Inhalte. Lockerungen und ihr Grund:
   `style-src 'unsafe-inline'` (Svelte setzt Inline-Styles für die virtualisierte
   Liste), `script-src 'wasm-unsafe-eval'` (pdf.js nutzt WebAssembly für
@@ -172,7 +182,7 @@ src/
 
 ## Bekannte Einschränkungen
 
-- **Phase 2 und 3 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
+- **Phase 2 bis 4 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
   Zwischenablage, Drag in andere Programme, Icon-Gewinnung, das native
   Kontextmenü und das Öffnen von Dateien greifen tief in Windows ein und lassen
   sich nur dort prüfen. Kompiliert und statisch geprüft sind sie, die Abläufe
@@ -220,12 +230,28 @@ src/
   Änderungen werden gebündelt, die Anzeige kann um Sekundenbruchteile nachhängen.
 - **Pfade werden in normaler Form an die Shell gegeben**, Pfade über 260 Zeichen
   funktionieren nur, wenn Windows lange Pfade aktiviert hat.
-- **Es gibt nur die Listenansicht**; Kacheln, Spalten und Baum aus dem Design
-  folgen, ebenso Einstellungen und der Netzwerk-Eintrag der Seitenleiste.
+- **Baumansicht:** Sie zeigt und öffnet, aber sie bearbeitet nicht: Kopieren,
+  Löschen, Umbenennen, Ziehen und die Schnellvorschau gibt es dort nicht
+  (Rechtsklick zeigt das Windows-Menü, daraus wirkt nur „Öffnen“ in der App).
+  Sie aktualisiert sich nicht live; ein Wechsel des Ordners, geänderte Limits
+  oder F5 scannen neu, und dabei klappen von Hand geöffnete Ordner wieder zu.
+  Sortiert wird immer nach Name (Ordner zuerst); Suche und Sortier-Menü wirken
+  dort nicht. Beim Gesamtlimit liest der Scan ebenenweise, die oberen Ebenen
+  sind also vollständig. Ein Ordner mit sehr vielen Einträgen wird trotz
+  Limit einmal ganz durchgezählt (für „… und N weitere“), das kann bei
+  Millionen Einträgen einige Sekunden dauern, ist aber abbrechbar.
+- **Kachelansicht:** Thumbnails kommen von Windows in 256 px. Ordner zeigen das
+  gezeichnete Symbol, keine Inhaltsvorschau.
+- **Es fehlen** die Spaltenansicht und die Gruppierung aus den Anforderungen
+  sowie der Netzwerk-Eintrag der Seitenleiste. Die Einstellungen umfassen
+  bisher versteckte Dateien, Kachelgröße und die Baum-Limits; ein manueller
+  Hell/Dunkel-Schalter fehlt (die App folgt Windows).
+- **Die Ansicht gilt pro Tab** und wird nicht gespeichert; neue Tabs starten
+  in der Liste.
 - **Symbole sind gezeichnet, nicht von Windows**: Ordnersymbol und farbige
   Typ-Kürzel aus dem Design. Echte Windows-Icons und Thumbnails kommen in
   Phase 3; die Typ-Spalte leitet sich bis dahin aus der Endung ab.
-- **Tabs** merken sich Pfad, Verlauf, Sortierung und Auswahl, aber nicht die
+- **Tabs** merken sich Pfad, Verlauf, Ansicht, Sortierung und Auswahl, aber nicht die
   Scrollposition, und werden beim Beenden nicht gespeichert.
 - **Netzlaufwerke** werden in der Seitenleiste angezeigt, aber noch ohne
   Timeout und Offline-Status geöffnet. Ein nicht erreichbares Laufwerk friert
@@ -239,7 +265,8 @@ src/
   Hintergrund. Wegen der eigenen Titelleiste fehlt das Snap-Layout-Flyout beim
   Überfahren von „Maximieren“ (Win+Z und Ziehen an den Rand funktionieren).
 - **Getestet** wurde bisher: Kernlogik per Unit-Tests (u. a. Pfadvalidierung,
-  Operationsplanung, Watcher), Windows-Code per Cross-Kompilierprüfung unter
+  Operationsplanung, Watcher, Baum-Limits mit 100.000 Dateien in einem Ordner
+  und einer Link-Endlosschleife), Windows-Code per Cross-Kompilierprüfung unter
   Linux und in der CI auf Windows, Oberfläche im Browser gegen das
   Demo-Backend (auch mit 100.000 Einträgen). Ein Test der fertigen App auf
   echtem Windows steht aus.
@@ -249,10 +276,10 @@ src/
 1. ✅ Projekt-Setup, Fenster, Theme, Seitenleiste, Ordner auflisten und navigieren
 2. ✅ Dateioperationen, Drag & Drop, Tabs, Live-Aktualisierung
 3. ✅ Icons, Thumbnails, Kontextmenü, Schnellvorschau, Datei öffnen
-4. Baumansicht mit Limits, Abbruch und Export
+4. ✅ Baumansicht mit Limits, Abbruch und Export; dazu Kachelansicht und Einstellungen
 5. OneDrive-Integration
 6. Netzwerklaufwerke
 7. Feinschliff: Performance, Tests, Sicherheitsprüfung, Installer
 
 Noch keiner Phase zugeordnet, aber in den Anforderungen und im Design
-vorhanden: Kachel- und Spaltenansicht, Gruppierung, Einstellungen.
+vorhanden: Spaltenansicht und Gruppierung.

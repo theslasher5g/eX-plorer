@@ -6,6 +6,8 @@ pub mod fs;
 pub mod menu;
 pub mod ops;
 pub mod preview;
+pub mod settings;
+pub mod tree;
 pub mod watch;
 
 use crate::error::AppError;

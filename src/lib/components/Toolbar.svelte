@@ -1,12 +1,19 @@
 <script lang="ts">
-  import { ArrowLeft, ArrowRight, ArrowUp, FolderPlus, Search, X } from '@lucide/svelte';
+  import { ArrowLeft, ArrowRight, ArrowUp, FolderPlus, LayoutGrid, List, ListTree, Search, X } from '@lucide/svelte';
+  import type { Component } from 'svelte';
   import { t } from '../i18n';
   import { ops } from '../stores/ops.svelte';
-  import type { Pane } from '../stores/pane.svelte';
+  import type { Pane, ViewMode } from '../stores/pane.svelte';
   import Breadcrumb from './Breadcrumb.svelte';
   import SortMenu from './SortMenu.svelte';
 
   let { pane }: { pane: Pane } = $props();
+
+  const views: { id: ViewMode; icon: Component; label: 'view.list' | 'view.grid' | 'view.tree' }[] = [
+    { id: 'list', icon: List, label: 'view.list' },
+    { id: 'grid', icon: LayoutGrid, label: 'view.grid' },
+    { id: 'tree', icon: ListTree, label: 'view.tree' },
+  ];
 
   let breadcrumb = $state<ReturnType<typeof Breadcrumb>>();
   let filterInput = $state<HTMLInputElement>();
@@ -42,6 +49,21 @@
 
   <Breadcrumb bind:this={breadcrumb} path={pane.path} onnavigate={(path) => pane.navigate(path)} />
 
+  <div class="seg" role="group" aria-label={t('view.label')}>
+    {#each views as view (view.id)}
+      {@const Icon = view.icon}
+      <button
+        class:on={pane.view === view.id}
+        title={t(view.label)}
+        aria-label={t(view.label)}
+        aria-pressed={pane.view === view.id}
+        onclick={() => (pane.view = view.id)}
+      >
+        <Icon size={18} strokeWidth={1.7} />
+      </button>
+    {/each}
+  </div>
+
   <button
     class="icon-btn"
     title={t('ops.newFolder')}
@@ -62,6 +84,7 @@
       type="text"
       placeholder={t('nav.filter')}
       aria-label={t('nav.filter')}
+      disabled={pane.view === 'tree'}
       spellcheck="false"
       autocomplete="off"
       onkeydown={onFilterKeydown}
@@ -88,6 +111,43 @@
   .navpair {
     display: flex;
     gap: 2px;
+  }
+
+  .seg {
+    flex: none;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--surface-2);
+  }
+
+  .seg button {
+    width: 34px;
+    height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    transition:
+      background var(--t-select),
+      color var(--t-select),
+      box-shadow var(--t-select);
+  }
+
+  .seg button:hover {
+    color: var(--text);
+  }
+
+  .seg button.on {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .search:has(input:disabled) {
+    opacity: 0.45;
   }
 
   .search {

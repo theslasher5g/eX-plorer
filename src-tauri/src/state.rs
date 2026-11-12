@@ -1,4 +1,6 @@
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 use explorer_core::watch::DirWatcher;
 use serde::Serialize;
@@ -20,6 +22,8 @@ pub enum Material {
 pub struct AppState {
     pub material: Material,
     pub watcher: Mutex<DirWatcher>,
+    /// Abbruchmarken laufender Baum-Scans, nach Scan-Kennung.
+    pub scans: Mutex<HashMap<u32, Arc<AtomicBool>>>,
 }
 
 /// Aktiviert Mica, wenn das System es unterstützt. Das Fenster ist transparent

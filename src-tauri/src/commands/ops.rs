@@ -207,6 +207,18 @@ pub async fn clipboard_set(
     blocking(move || Ok(clipboard::set(owner, &paths, cut)?)).await
 }
 
+/// Größter Text, der in die Zwischenablage gelegt wird (Baum-Export).
+const MAX_CLIPBOARD_TEXT: usize = 8 * 1024 * 1024;
+
+#[tauri::command]
+pub async fn clipboard_set_text(window: WebviewWindow, text: String) -> Result<(), AppError> {
+    if text.len() > MAX_CLIPBOARD_TEXT {
+        return Err(CoreError::TooLarge.into());
+    }
+    let owner = owner(&window);
+    blocking(move || Ok(clipboard::set_text(owner, &text)?)).await
+}
+
 /// Liest die Datei-Zwischenablage. Nur Pfade, die unsere Prüfung bestehen,
 /// werden weitergegeben.
 fn read_clipboard(owner: isize) -> Result<Option<(Vec<ValidPath>, bool)>, AppError> {

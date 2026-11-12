@@ -14,8 +14,11 @@ import type {
   PasteResult,
   PreviewInfo,
   RenameResult,
+  Settings,
   SidebarData,
   TextContent,
+  TreeChunk,
+  TreeSummary,
 } from './types';
 
 export const tauriApi: Api = {
@@ -51,6 +54,15 @@ export const tauriApi: Api = {
   contextMenu: (paths, folder, newTabLabel) =>
     invoke<MenuOutcome>('context_menu', { paths, folder, newTabLabel }),
   openItem: (path, confirmed) => invoke<OpenResult>('open_item', { path, confirmed }),
+  treeScan(args, onChunk) {
+    const channel = new Channel<TreeChunk>();
+    channel.onmessage = onChunk;
+    return invoke<TreeSummary>('tree_scan', { args, onChunk: channel });
+  },
+  treeCancel: (scanId) => invoke<void>('tree_cancel', { scanId }),
+  settingsGet: () => invoke<Settings>('settings_get'),
+  settingsSet: (settings) => invoke<Settings>('settings_set', { settings }),
+  clipboardSetText: (text) => invoke<void>('clipboard_set_text', { text }),
   window: {
     minimize: () => getCurrentWindow().minimize(),
     toggleMaximize: () => getCurrentWindow().toggleMaximize(),

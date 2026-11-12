@@ -15,7 +15,7 @@
     return () => {
       // War der Ursprung eine inzwischen entfernte Zeile, geht der Fokus an die Liste.
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
-      else document.querySelector<HTMLElement>('[role="grid"]')?.focus();
+      else document.querySelector<HTMLElement>('[role="grid"], [role="tree"], [role="listbox"]')?.focus();
     };
   });
 

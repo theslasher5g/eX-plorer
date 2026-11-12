@@ -33,6 +33,7 @@ fn main() {
             app.manage(state::AppState {
                 material,
                 watcher: Mutex::new(watcher),
+                scans: Mutex::default(),
             });
             Ok(())
         })
@@ -54,6 +55,11 @@ fn main() {
             commands::preview::preview_text,
             commands::menu::context_menu,
             commands::menu::open_item,
+            commands::tree::tree_scan,
+            commands::tree::tree_cancel,
+            commands::settings::settings_get,
+            commands::settings::settings_set,
+            commands::ops::clipboard_set_text,
         ])
         .run(tauri::generate_context!());
 
