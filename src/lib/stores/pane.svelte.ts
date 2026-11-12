@@ -24,6 +24,11 @@ export class Pane {
   filter = $state('');
   showHidden = $state(false);
 
+  /** Name des Eintrags, der gerade umbenannt wird. */
+  renaming = $state<string | null>(null);
+  /** Wird erhöht, wenn die Ansicht den Fokus-Eintrag ins Bild holen soll. */
+  scrollSignal = $state(0);
+
   selected = $state.raw<ReadonlySet<string>>(new Set());
   /** Index des Fokus-Eintrags in `visible`, -1 wenn keiner. */
   cursor = $state(-1);
@@ -32,6 +37,7 @@ export class Pane {
   #index = $state(-1);
   #anchor = -1;
   #generation = 0;
+  #pendingSelect: string[] | null = null;
 
   readonly canBack = $derived(this.#index > 0);
   readonly canForward = $derived(this.#index < this.#history.length - 1);
@@ -117,19 +123,21 @@ export class Pane {
     this.loading = true;
     this.error = null;
     this.path = target;
+    if (!keepSelection) this.renaming = null;
 
     const collected: Entry[] = [];
-    let first = true;
+    let shown = false;
     try {
       const api = await getApi();
       const summary = await api.listDir(target, (batch) => {
         if (generation !== this.#generation) return;
         for (const entry of batch) collected.push(entry);
-        // Den ersten Stapel sofort zeigen; der Rest folgt gesammelt am Ende,
-        // damit große Ordner nicht dutzendfach neu sortiert werden.
-        if (first) {
-          first = false;
-          this.#show(collected.slice(), keepSelection);
+        // Beim Navigieren den ersten Stapel sofort zeigen; der Rest folgt
+        // gesammelt am Ende, damit große Ordner nicht dutzendfach neu
+        // sortiert werden. Beim Aktualisieren flackert nichts: erst am Ende.
+        if (!keepSelection && !shown) {
+          shown = true;
+          this.#show(collected.slice(), false, false);
         }
       });
       if (generation !== this.#generation) return;
@@ -138,12 +146,12 @@ export class Pane {
       const history = this.#history.slice();
       history[this.#index] = summary.path;
       this.#history = history;
-      if (first || collected.length > this.entries.length) {
-        this.#show(collected, keepSelection || !first);
-      }
+      this.#show(collected, keepSelection || shown, true);
     } catch (err) {
       if (generation !== this.#generation) return;
       this.entries = [];
+      this.#pendingSelect = null;
+      this.renaming = null;
       this.#resetSelection();
       this.error = toApiError(err);
     } finally {
@@ -151,7 +159,7 @@ export class Pane {
     }
   }
 
-  #show(entries: Entry[], keepSelection: boolean): void {
+  #show(entries: Entry[], keepSelection: boolean, final: boolean): void {
     this.entries = entries;
     if (keepSelection) {
       const names = new Set(entries.map((e) => e.name));
@@ -161,6 +169,27 @@ export class Pane {
       this.#resetSelection();
       this.revision++;
     }
+    if (!final) return;
+
+    if (this.renaming && !entries.some((e) => e.name === this.renaming)) this.renaming = null;
+    const wanted = this.#pendingSelect;
+    this.#pendingSelect = null;
+    if (wanted) {
+      const names = new Set(wanted);
+      const items = this.visible;
+      const picked = items.filter((e) => names.has(e.name));
+      if (picked.length > 0) {
+        this.selected = new Set(picked.map((e) => e.name));
+        this.cursor = items.indexOf(picked[0]);
+        this.#anchor = this.cursor;
+        this.scrollSignal++;
+      }
+    }
+  }
+
+  /** Markiert nach dem nächsten vollständigen Laden diese Namen. */
+  selectAfterLoad(names: string[]): void {
+    this.#pendingSelect = names;
   }
 
   #resetSelection(): void {

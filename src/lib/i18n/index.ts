@@ -18,3 +18,7 @@ export function errorText(code: string): string {
   const key = `error.${code}`;
   return key in messages ? messages[key as MessageKey] : messages['error.internal'];
 }
+
+export function itemsText(count: number): string {
+  return count === 1 ? t('ops.itemsOne') : t('ops.itemsMany', { count });
+}

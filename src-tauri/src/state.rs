@@ -1,3 +1,6 @@
+use std::sync::Mutex;
+
+use explorer_core::watch::DirWatcher;
 use serde::Serialize;
 use tauri::window::{Effect, EffectsBuilder};
 use tauri::WebviewWindow;
@@ -16,6 +19,7 @@ pub enum Material {
 
 pub struct AppState {
     pub material: Material,
+    pub watcher: Mutex<DirWatcher>,
 }
 
 /// Aktiviert Mica, wenn das System es unterstützt. Das Fenster ist transparent

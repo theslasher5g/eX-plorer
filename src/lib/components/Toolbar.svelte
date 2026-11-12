@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { ArrowLeft, ArrowRight, ArrowUp, Search, X } from '@lucide/svelte';
+  import { ArrowLeft, ArrowRight, ArrowUp, FolderPlus, Search, X } from '@lucide/svelte';
   import { t } from '../i18n';
+  import { ops } from '../stores/ops.svelte';
   import type { Pane } from '../stores/pane.svelte';
   import Breadcrumb from './Breadcrumb.svelte';
   import SortMenu from './SortMenu.svelte';
@@ -40,6 +41,16 @@
   </div>
 
   <Breadcrumb bind:this={breadcrumb} path={pane.path} onnavigate={(path) => pane.navigate(path)} />
+
+  <button
+    class="icon-btn"
+    title={t('ops.newFolder')}
+    aria-label={t('ops.newFolder')}
+    disabled={!!pane.error || !pane.path}
+    onclick={() => ops.newFolder()}
+  >
+    <FolderPlus size={18} strokeWidth={1.7} />
+  </button>
 
   <SortMenu {pane} />
 

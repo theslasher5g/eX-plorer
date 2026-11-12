@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true
+notify = { version = "8", default-features = false, features = ["macos_fsevent"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }

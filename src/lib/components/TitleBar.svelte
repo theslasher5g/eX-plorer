@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Folder, Plus, X } from '@lucide/svelte';
   import { t } from '../i18n';
+  import { dnd } from '../stores/dnd.svelte';
   import type { Tabs } from '../stores/tabs.svelte';
   import WindowControls from './WindowControls.svelte';
 
@@ -24,7 +25,12 @@
 
   <div class="tabs" role="tablist" aria-label={t('tabs.label')} data-tauri-drag-region>
     {#each tabs.panes as pane, index (pane.id)}
-      <div class="tab" class:on={index === tabs.active}>
+      <div
+        class="tab"
+        class:on={index === tabs.active}
+        class:drop={index !== tabs.active && dnd.isHover(pane.path)}
+        data-drop={pane.path || undefined}
+      >
         <button
           class="tab-main"
           role="tab"

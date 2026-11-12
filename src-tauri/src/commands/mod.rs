@@ -3,6 +3,8 @@
 
 pub mod app;
 pub mod fs;
+pub mod ops;
+pub mod watch;
 
 use crate::error::AppError;
 

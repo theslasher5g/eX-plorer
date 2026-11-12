@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getApi, type SidebarData } from './lib/api';
+  import { samePath } from './lib/paths';
+  import { dialogs } from './lib/stores/dialog.svelte';
+  import { dnd } from './lib/stores/dnd.svelte';
+  import { ops } from './lib/stores/ops.svelte';
   import { Tabs } from './lib/stores/tabs.svelte';
+  import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
   import FileList from './lib/components/FileList.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   import StatusBar from './lib/components/StatusBar.svelte';
   import TitleBar from './lib/components/TitleBar.svelte';
+  import Toast from './lib/components/Toast.svelte';
   import Toolbar from './lib/components/Toolbar.svelte';
 
   const tabs = new Tabs();
@@ -15,13 +21,45 @@
   let home = $state('');
   let toolbar = $state<ReturnType<typeof Toolbar>>();
 
-  onMount(async () => {
-    const api = await getApi();
-    const info = await api.appInfo();
-    document.documentElement.dataset.material = info.material;
-    home = info.homeDir;
-    void pane.navigate(home);
-    sidebar = await api.sidebar();
+  ops.bind(tabs, () => sidebar?.drives ?? []);
+
+  onMount(() => {
+    const cleanups: (() => void)[] = [];
+    let disposed = false;
+    const keep = (stop: () => void) => (disposed ? stop() : cleanups.push(stop));
+
+    void (async () => {
+      const api = await getApi();
+      const info = await api.appInfo();
+      document.documentElement.dataset.material = info.material;
+      home = info.homeDir;
+      void pane.navigate(home);
+      sidebar = await api.sidebar();
+
+      // Änderungen im Dateisystem (auch von anderen Programmen) nachladen.
+      keep(
+        await api.onDirChanged((dir) => {
+          for (const p of tabs.panes) if (samePath(p.path, dir)) void p.refresh();
+        }),
+      );
+      keep(await dnd.init());
+      void ops.refreshClipboard();
+    })();
+
+    // Die Zwischenablage kann sich in anderen Programmen ändern.
+    const onFocus = () => void ops.refreshClipboard();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      disposed = true;
+      window.removeEventListener('focus', onFocus);
+      cleanups.forEach((stop) => stop());
+    };
+  });
+
+  // Die Ordner aller Tabs beobachten lassen.
+  $effect(() => {
+    const paths = tabs.panes.map((p) => p.path).filter(Boolean);
+    void getApi().then((api) => api.watchDirs(paths)).catch(() => {});
   });
 
   function newTab() {
@@ -33,6 +71,8 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    // Solange ein Dialog offen ist, gehört ihm die Tastatur.
+    if (dialogs.confirmState) return;
     const { altKey, ctrlKey, shiftKey } = event;
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     let handled = true;
@@ -45,7 +85,14 @@
     else if (ctrlKey && key === 't') newTab();
     else if (ctrlKey && key === 'w') tabs.close(tabs.active);
     else if (ctrlKey && key === 'Tab') tabs.cycle(shiftKey ? -1 : 1);
-    else if (key === 'Backspace' && !isTextInput(event.target)) void pane.up();
+    else if (isTextInput(event.target)) handled = false;
+    else if (key === 'Backspace') void pane.up();
+    else if (ctrlKey && shiftKey && key === 'n') void ops.newFolder();
+    else if (ctrlKey && key === 'c') void ops.copy(false);
+    else if (ctrlKey && key === 'x') void ops.copy(true);
+    else if (ctrlKey && key === 'v') void ops.paste();
+    else if (key === 'F2') ops.startRename();
+    else if (key === 'Delete') void ops.remove(shiftKey);
     else handled = false;
     if (handled) event.preventDefault();
   }
@@ -77,6 +124,9 @@
     </section>
   </div>
 </div>
+
+<ConfirmDialog />
+<Toast />
 
 <style>
   .win {

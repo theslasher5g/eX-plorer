@@ -5,6 +5,7 @@
   import { formatSize } from '../format';
   import { t } from '../i18n';
   import { samePath } from '../paths';
+  import { dnd } from '../stores/dnd.svelte';
 
   let {
     data,
@@ -44,7 +45,14 @@
 </script>
 
 {#snippet item(Icon: Component, label: string, path: string, title: string)}
-  <button class="nav" class:on={samePath(path, current)} {title} onclick={() => onnavigate(path)}>
+  <button
+    class="nav"
+    class:on={samePath(path, current)}
+    class:drop={dnd.isHover(path)}
+    data-drop={path}
+    {title}
+    onclick={() => onnavigate(path)}
+  >
     <Icon size={18} strokeWidth={1.7} />
     <span>{label}</span>
   </button>

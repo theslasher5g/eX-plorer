@@ -90,6 +90,32 @@ impl ValidPath {
         })
     }
 
+    /// Ist `self` gleich `ancestor` oder liegt darunter? Ohne Beachtung der
+    /// Groß-/Kleinschreibung, wie unter Windows üblich.
+    pub fn is_inside_or_same(&self, ancestor: &ValidPath) -> bool {
+        let me = self.normalized.to_lowercase();
+        let other = ancestor.normalized.to_lowercase();
+        if me == other {
+            return true;
+        }
+        let prefix = if other.ends_with('\\') {
+            other
+        } else {
+            format!("{other}\\")
+        };
+        me.starts_with(&prefix)
+    }
+
+    pub fn same_as(&self, other: &ValidPath) -> bool {
+        self.normalized.to_lowercase() == other.normalized.to_lowercase()
+    }
+
+    /// Liegen beide auf demselben Laufwerk bzw. derselben Freigabe?
+    pub fn same_volume(&self, other: &ValidPath) -> bool {
+        self.normalized[..self.root_len].to_lowercase()
+            == other.normalized[..other.root_len].to_lowercase()
+    }
+
     /// Hängt einen einzelnen, geprüften Namen an.
     pub fn join(&self, name: &str) -> Result<ValidPath, PathError> {
         validate_name(name)?;
@@ -443,6 +469,28 @@ mod tests {
         assert_eq!(root.as_str(), r"\\srv\share");
         assert!(root.is_root());
         assert_eq!(root.parent(), None);
+    }
+
+    #[test]
+    fn inside_and_volume_checks() {
+        let a = validate_path(r"C:\Users\Demo").unwrap();
+        let b = validate_path(r"c:\users\demo\Docs\x").unwrap();
+        let c = validate_path(r"C:\Users\Demonstration").unwrap();
+        let root = validate_path(r"C:\").unwrap();
+        assert!(b.is_inside_or_same(&a));
+        assert!(a.is_inside_or_same(&a));
+        assert!(!a.is_inside_or_same(&b));
+        assert!(!c.is_inside_or_same(&a), "Präfix allein genügt nicht");
+        assert!(a.is_inside_or_same(&root));
+        assert!(a.same_volume(&c));
+        let d = validate_path(r"D:\x").unwrap();
+        assert!(!a.same_volume(&d));
+        let u1 = validate_path(r"\\srv\one\a").unwrap();
+        let u2 = validate_path(r"\\SRV\ONE\b").unwrap();
+        let u3 = validate_path(r"\\srv\two\a").unwrap();
+        assert!(u1.same_volume(&u2));
+        assert!(!u1.same_volume(&u3));
+        assert!(u1.is_inside_or_same(&validate_path(r"\\srv\one").unwrap()));
     }
 
     #[test]

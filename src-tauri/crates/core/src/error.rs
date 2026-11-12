@@ -13,6 +13,18 @@ pub enum CoreError {
     AccessDenied,
     #[error("not a directory")]
     NotADirectory,
+    #[error("already exists")]
+    AlreadyExists,
+    #[error("in use by another process")]
+    Busy,
+    #[error("a folder cannot be placed inside itself")]
+    IntoItself,
+    #[error("drive roots cannot be changed this way")]
+    RootNotAllowed,
+    #[error("too many items")]
+    TooMany,
+    #[error("nothing to paste")]
+    NothingToPaste,
     #[error("i/o error: {0}")]
     Io(io::Error),
 }
@@ -23,6 +35,7 @@ impl From<io::Error> for CoreError {
             io::ErrorKind::NotFound => Self::NotFound,
             io::ErrorKind::PermissionDenied => Self::AccessDenied,
             io::ErrorKind::NotADirectory => Self::NotADirectory,
+            io::ErrorKind::AlreadyExists => Self::AlreadyExists,
             _ => Self::Io(err),
         }
     }

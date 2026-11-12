@@ -7,6 +7,9 @@
 
 pub mod error;
 pub mod listing;
+pub mod ops;
 pub mod path;
+pub mod watch;
+pub mod winerr;
 
 pub use error::CoreError;

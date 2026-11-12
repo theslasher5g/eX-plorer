@@ -1,6 +1,6 @@
 // Demo-Backend für die Entwicklung im Browser. Wird nur im Dev-Modus geladen
 // und greift auf kein echtes Dateisystem zu.
-import type { Api, Entry } from './types';
+import type { Api, ClipboardFiles, DragDropEvent, Entry } from './types';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 10, 12, 9, 30);
@@ -78,6 +78,8 @@ const tree: Record<string, Entry[]> = {
   ],
   [`${HOME}\\OneDrive`]: [d('Dokumente', 2), f('Geteilt.docx', 20_480, 1)],
   'D:\\': [d('Backups', 7), d('Medien', 30)],
+  'E:\\': [f('Foto.jpg', 2_048_000, 4), d('USB-Ordner', 9)],
+  'E:\\USB-Ordner': [],
   'C:\\Test': [d('100k', 1), d('Leer', 1)],
   'C:\\Test\\Leer': [],
 };
@@ -92,6 +94,111 @@ function hugeFolder(): Entry[] {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// --- Veränderbares Dateisystem im Speicher -------------------------------
+
+const lower = (s: string) => s.toLowerCase();
+const norm = (path: string) => (path.length > 3 ? path.replace(/\\+$/, '') : path);
+const parentOf = (path: string) => {
+  const i = path.lastIndexOf('\\');
+  return i <= 2 ? path.slice(0, 3) : path.slice(0, i);
+};
+const nameOf = (path: string) => path.slice(path.lastIndexOf('\\') + 1);
+const join = (dir: string, name: string) => (dir.endsWith('\\') ? dir + name : `${dir}\\${name}`);
+const driveOf = (path: string) => lower(path.slice(0, 2));
+const isInside = (path: string, ancestor: string) =>
+  lower(path) === lower(ancestor) || lower(path).startsWith(lower(ancestor.replace(/\\$/, '')) + '\\');
+
+function key(path: string): string | undefined {
+  return Object.keys(tree).find((k) => lower(k) === lower(path));
+}
+
+function find(dir: string, name: string): Entry | undefined {
+  return tree[key(dir) ?? '']?.find((e) => lower(e.name) === lower(name));
+}
+
+function fail(code: string): never {
+  throw { code, message: code };
+}
+
+function validName(name: string) {
+  if (!name || /[\\/:*?"<>|]/.test(name) || /[. ]$/.test(name) || name === '.' || name === '..') fail('invalid_path');
+  if (/^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(name)) fail('invalid_path');
+}
+
+/** Alle Schlüssel des Baums, die `path` selbst oder darunter liegen. */
+function subtree(path: string): string[] {
+  return Object.keys(tree).filter((k) => isInside(k, path));
+}
+
+function copyTree(from: string, to: string) {
+  for (const k of subtree(from)) {
+    const target = lower(k) === lower(from) ? to : to + k.slice(from.length);
+    tree[target] = tree[k].map((e) => ({ ...e }));
+  }
+}
+
+function removeTree(path: string) {
+  for (const k of subtree(path)) delete tree[k];
+}
+
+const handlers = new Set<(path: string) => void>();
+const dropHandlers = new Set<(event: DragDropEvent) => void>();
+
+/** Simuliert den Watcher: meldet geänderte Ordner kurz verzögert. */
+function changed(...dirs: string[]) {
+  setTimeout(() => {
+    for (const dir of new Set(dirs.map(norm))) handlers.forEach((h) => h(dir));
+  }, 30);
+}
+
+let clipboard: ClipboardFiles | null = null;
+let watched: string[] = [];
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // Hilfen für automatisierte Tests im Browser.
+  Object.assign(window, {
+    __mockDrop: (type: DragDropEvent['type'], paths: string[], x: number, y: number) => {
+      const dpr = window.devicePixelRatio;
+      dropHandlers.forEach((h) => h({ type, paths, position: { x: x * dpr, y: y * dpr } }));
+    },
+    __mockState: () => ({ tree, clipboard, watched }),
+  });
+}
+
+function uniqueName(dir: string, wanted: string, suffix: string): string {
+  if (!find(dir, wanted)) return wanted;
+  const dot = wanted.lastIndexOf('.');
+  const [stem, ext] = dot > 0 ? [wanted.slice(0, dot), wanted.slice(dot)] : [wanted, ''];
+  for (let n = 1; ; n++) {
+    const candidate = `${stem}${suffix}${n > 1 ? ` (${n})` : ''}${ext}`;
+    if (!find(dir, candidate)) return candidate;
+  }
+}
+
+function doTransfer(sources: string[], dest: string, move: boolean) {
+  const destKey = key(norm(dest));
+  if (!destKey) fail('not_found');
+  const names: string[] = [];
+  for (const raw of sources) {
+    const src = norm(raw);
+    const entry = find(parentOf(src), nameOf(src));
+    if (!entry) fail('not_found');
+    if (src.length <= 3) fail('root_not_allowed');
+    if (isInside(destKey, src)) fail('into_itself');
+    const sameDir = lower(parentOf(src)) === lower(destKey);
+    if (sameDir && move) continue;
+    const name = uniqueName(destKey, entry.name, sameDir ? ' - Kopie' : ' (2)');
+    tree[destKey].push({ ...entry, name, modifiedMs: NOW });
+    if (entry.isDir) copyTree(src, join(destKey, name));
+    if (move) {
+      tree[key(parentOf(src))!] = tree[key(parentOf(src))!].filter((e) => e !== entry);
+      if (entry.isDir) removeTree(src);
+    }
+    names.push(name);
+  }
+  return names;
+}
 
 export const mockApi: Api = {
   async appInfo() {
@@ -115,13 +222,103 @@ export const mockApi: Api = {
     };
   },
   async listDir(path, onBatch) {
-    const normalized = path.length > 3 ? path.replace(/\\+$/, '') : path;
+    const normalized = norm(path);
     await sleep(40);
-    if (normalized === 'C:\\Windows') throw { code: 'access_denied', message: 'access denied' };
-    const entries = normalized === 'C:\\Test\\100k' ? hugeFolder() : tree[normalized];
+    if (lower(normalized) === 'c:\\windows') throw { code: 'access_denied', message: 'access denied' };
+    const k = key(normalized);
+    const entries = lower(normalized) === 'c:\\test\\100k' ? hugeFolder() : k ? tree[k] : undefined;
     if (!entries) throw { code: 'not_found', message: 'not found' };
-    for (let i = 0; i < entries.length; i += 2000) onBatch(entries.slice(i, i + 2000));
-    return { path: normalized, count: entries.length };
+    const copy = entries.map((e) => ({ ...e }));
+    for (let i = 0; i < copy.length; i += 2000) onBatch(copy.slice(i, i + 2000));
+    return { path: k ?? normalized, count: copy.length };
+  },
+
+  async newFolder(parent, base) {
+    validName(base);
+    const k = key(norm(parent));
+    if (!k) fail('not_found');
+    let final = base;
+    for (let n = 2; find(k, final); n++) final = `${base} (${n})`;
+    tree[k].push(d(final, 0));
+    tree[join(k, final)] = [];
+    changed(k);
+    return final;
+  },
+  async renameItem(path, newName) {
+    const src = norm(path);
+    if (src.length <= 3) fail('root_not_allowed');
+    validName(newName);
+    const parent = parentOf(src);
+    const entry = find(parent, nameOf(src));
+    if (!entry) fail('not_found');
+    if (entry.name === newName) return { name: newName, path: src, aborted: false };
+    const clash = find(parent, newName);
+    if (clash && clash !== entry) fail('already_exists');
+    const target = join(parent, newName);
+    entry.name = newName;
+    if (entry.isDir) {
+      for (const k of subtree(src)) {
+        const moved = lower(k) === lower(src) ? target : target + k.slice(src.length);
+        tree[moved] = tree[k];
+        delete tree[k];
+      }
+    }
+    changed(parent);
+    return { name: newName, path: target, aborted: false };
+  },
+  async transfer(sources, dest, mode) {
+    await sleep(30);
+    const sameDrive = sources.every((s) => driveOf(s) === driveOf(dest));
+    const move = mode === 'move' || (mode === 'auto' && sameDrive);
+    const names = doTransfer(sources, dest, move);
+    changed(dest, ...sources.map((s) => parentOf(norm(s))));
+    return { aborted: false, count: names.length, moved: move, names };
+  },
+  async deleteItems(paths, permanent) {
+    void permanent;
+    await sleep(30);
+    const names: string[] = [];
+    for (const raw of paths) {
+      const p = norm(raw);
+      if (p.length <= 3) fail('root_not_allowed');
+      const parent = key(parentOf(p));
+      const entry = parent ? find(parent, nameOf(p)) : undefined;
+      if (!parent || !entry) fail('not_found');
+      tree[parent] = tree[parent].filter((e) => e !== entry);
+      if (entry.isDir) removeTree(p);
+      names.push(entry.name);
+    }
+    changed(...paths.map((p) => parentOf(norm(p))));
+    return { aborted: false, count: names.length, moved: false, names };
+  },
+  async clipboardSet(paths, cut) {
+    clipboard = { paths: paths.map(norm), cut };
+  },
+  async clipboardGet() {
+    return clipboard ? { ...clipboard } : null;
+  },
+  async paste(dest) {
+    if (!clipboard) fail('nothing_to_paste');
+    const { paths, cut } = clipboard;
+    const names = doTransfer(paths, dest, cut);
+    if (cut) clipboard = null;
+    changed(dest, ...paths.map((p) => parentOf(p)));
+    return { aborted: false, count: names.length, moved: cut, names, cut };
+  },
+  async startDrag(paths) {
+    void paths;
+    return 1;
+  },
+  async watchDirs(paths) {
+    watched = paths;
+  },
+  async onDirChanged(handler) {
+    handlers.add(handler);
+    return () => handlers.delete(handler);
+  },
+  async onDragDrop(handler) {
+    dropHandlers.add(handler);
+    return () => dropHandlers.delete(handler);
   },
   window: {
     async minimize() {},

@@ -9,6 +9,8 @@ use serde::{Serialize, Serializer};
 pub enum AppError {
     #[error(transparent)]
     Core(#[from] CoreError),
+    #[error("clipboard: {0}")]
+    Clipboard(#[from] crate::shell::clipboard::ClipboardError),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -26,7 +28,14 @@ impl AppError {
             Self::Core(CoreError::NotFound) => "not_found",
             Self::Core(CoreError::AccessDenied) => "access_denied",
             Self::Core(CoreError::NotADirectory) => "not_a_directory",
+            Self::Core(CoreError::AlreadyExists) => "already_exists",
+            Self::Core(CoreError::Busy) => "busy",
+            Self::Core(CoreError::IntoItself) => "into_itself",
+            Self::Core(CoreError::RootNotAllowed) => "root_not_allowed",
+            Self::Core(CoreError::TooMany) => "too_many",
+            Self::Core(CoreError::NothingToPaste) => "nothing_to_paste",
             Self::Core(CoreError::Io(_)) => "io",
+            Self::Clipboard(_) => "clipboard",
             Self::Internal(_) => "internal",
         }
     }

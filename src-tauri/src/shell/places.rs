@@ -172,6 +172,20 @@ fn drive_info(letter: char) -> Drive {
     drive
 }
 
+/// Liegt der Pfad auf einem Netzwerklaufwerk oder einer UNC-Freigabe?
+/// Dort wird nichts beobachtet und nichts automatisch geladen.
+pub fn is_remote(path: &explorer_core::path::ValidPath) -> bool {
+    if path.is_unc() {
+        return true;
+    }
+    let root: Vec<u16> = path.as_str()[..3.min(path.as_str().len())]
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    // SAFETY: `root` ist nullterminiert und überlebt den Aufruf.
+    unsafe { GetDriveTypeW(PCWSTR(root.as_ptr())) == DRIVE_REMOTE }
+}
+
 /// Lokale OneDrive-Ordner aus den Umgebungsvariablen. Die vollständige
 /// Konten-Erkennung über die Registry folgt mit der OneDrive-Integration.
 fn onedrive() -> Vec<Place> {

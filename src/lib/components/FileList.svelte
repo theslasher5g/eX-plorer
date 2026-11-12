@@ -5,7 +5,11 @@
   import { formatDate, formatDateLong, formatSize } from '../format';
   import { errorText, t, type MessageKey } from '../i18n';
   import type { Pane, SortKey } from '../stores/pane.svelte';
+  import { joinPath } from '../paths';
+  import { dnd } from '../stores/dnd.svelte';
+  import { ops } from '../stores/ops.svelte';
   import FileIcon from './FileIcon.svelte';
+  import RenameBox from './RenameBox.svelte';
 
   let { pane }: { pane: Pane } = $props();
 
@@ -41,6 +45,12 @@
     return t('error.title');
   });
 
+  // Programmatisch gesetzte Auswahl (neuer Ordner, Einfügen, Umbenennen) ins Bild holen.
+  $effect(() => {
+    void pane.scrollSignal;
+    if (pane.cursor >= 0) reveal(pane.cursor);
+  });
+
   // Neuer Ordner: wieder oben anfangen.
   $effect(() => {
     void pane.revision;
@@ -60,7 +70,45 @@
     }
   }
 
+  // Ein Zug mit gedrückter Maustaste über der Schwelle startet einen echten
+  // Drag (OLE) in andere Programme oder auf Ordner, Tabs und Seitenleiste.
+  const DRAG_THRESHOLD = 6;
+  let press: { x: number; y: number; index: number } | null = null;
+  let suppressClickUntil = 0;
+
+  function endPress() {
+    press = null;
+    window.removeEventListener('pointermove', onPressMove);
+    window.removeEventListener('pointerup', endPress);
+  }
+
+  function onPressMove(event: PointerEvent) {
+    if (!press) return;
+    if ((event.buttons & 1) === 0) return endPress();
+    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < DRAG_THRESHOLD) return;
+    const { index } = press;
+    endPress();
+    beginDrag(index);
+  }
+
+  function beginDrag(index: number) {
+    const entry = items[index];
+    if (!entry) return;
+    if (!pane.selected.has(entry.name)) pane.select(index);
+    suppressClickUntil = performance.now() + 400;
+    void dnd.start(ops.selectedPaths(pane));
+  }
+
+  function onRowPointerDown(event: PointerEvent, index: number) {
+    if (event.button !== 0 || pane.renaming) return;
+    endPress();
+    press = { x: event.clientX, y: event.clientY, index };
+    window.addEventListener('pointermove', onPressMove);
+    window.addEventListener('pointerup', endPress);
+  }
+
   function onRowClick(event: MouseEvent, index: number) {
+    if (performance.now() < suppressClickUntil) return;
     pane.select(index, { toggle: event.ctrlKey, range: event.shiftKey });
   }
 
@@ -128,6 +176,8 @@
   bind:clientHeight={height}
   onscroll={() => (scrollTop = viewport?.scrollTop ?? 0)}
   onkeydown={onKeydown}
+  class:drop={dnd.isHover(pane.path) && !pane.error}
+  data-drop={pane.error ? undefined : pane.path}
   tabindex="0"
   role="grid"
   aria-busy={pane.loading}
@@ -192,21 +242,34 @@
         <div class="window" style:transform="translateY({start * ROW}px)" role="presentation">
           {#each rows as entry, i (entry.name)}
             {@const index = start + i}
+            <!-- Der Fokus liegt immer auf dem Raster, nie auf einzelnen Zeilen. -->
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions, a11y_interactive_supports_focus -->
             <div
               class="row lgrid"
               class:sel={pane.selected.has(entry.name)}
               class:cursor={pane.cursor === index}
-              class:dim={entry.hidden}
+              class:dim={entry.hidden || ops.isCut(joinPath(pane.path, entry.name))}
+              class:drop={entry.isDir && dnd.isHover(joinPath(pane.path, entry.name))}
+              data-drop={entry.isDir ? joinPath(pane.path, entry.name) : undefined}
               role="row"
-              tabindex="-1"
               aria-rowindex={index + 1}
               aria-selected={pane.selected.has(entry.name)}
+              onpointerdown={(event) => onRowPointerDown(event, index)}
               onclick={(event) => onRowClick(event, index)}
               ondblclick={(event) => onRowDblClick(event, entry)}
             >
               <span class="c-name" role="gridcell">
                 <FileIcon {entry} />
-                <span class="nm" title={entry.name}>{entry.name}</span>
+                {#if pane.renaming === entry.name}
+                  <RenameBox
+                    name={entry.name}
+                    isDir={entry.isDir}
+                    oncommit={(value) => ops.rename(pane, entry.name, value)}
+                    oncancel={() => (pane.renaming = null)}
+                  />
+                {:else}
+                  <span class="nm" title={entry.name}>{entry.name}</span>
+                {/if}
               </span>
               <span class="c-meta" role="gridcell" title={formatDateLong(entry.modifiedMs)}>
                 {formatDate(entry.modifiedMs)}
@@ -352,6 +415,15 @@
 
   .row.dim .c-name {
     opacity: 0.55;
+  }
+
+  .row.drop {
+    border-radius: var(--r-btn);
+  }
+
+  .viewport.drop {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    background: var(--accent-soft);
   }
 
   .center {

@@ -3,6 +3,7 @@
   import { ChevronRight } from '@lucide/svelte';
   import { t } from '../i18n';
   import { splitPath } from '../paths';
+  import { dnd } from '../stores/dnd.svelte';
 
   let { path, onnavigate }: { path: string; onnavigate: (path: string) => void } = $props();
 
@@ -66,7 +67,14 @@
       {#if i > 0}
         <span class="crumbsep"><ChevronRight size={14} strokeWidth={1.7} /></span>
       {/if}
-      <button class="crumb" class:last={i === crumbs.length - 1} title={crumb.path} onclick={() => onnavigate(crumb.path)}>
+      <button
+        class="crumb"
+        class:last={i === crumbs.length - 1}
+        class:drop={dnd.isHover(crumb.path)}
+        data-drop={crumb.path}
+        title={crumb.path}
+        onclick={() => onnavigate(crumb.path)}
+      >
         {crumb.label}
       </button>
     {/each}

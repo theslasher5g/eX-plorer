@@ -4,7 +4,6 @@
 //! Verzeichniseinträge; es wird kein Dateihandle geöffnet.
 
 use std::ffi::c_void;
-use std::io;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 
@@ -84,17 +83,8 @@ fn to_entry(data: &WIN32_FIND_DATAW) -> Option<Entry> {
     })
 }
 
-/// Übersetzt einen Windows-Fehler. `windows::core::Error` trägt ein HRESULT;
-/// die Standardbibliothek erkennt `NotFound` & Co. nur am Win32-Fehlercode.
 fn to_core_error(err: windows::core::Error) -> CoreError {
-    const FACILITY_WIN32: u32 = 0x8007_0000;
-    let hresult = err.code().0 as u32;
-    let io_error = if hresult & 0xFFFF_0000 == FACILITY_WIN32 {
-        io::Error::from_raw_os_error((hresult & 0xFFFF) as i32)
-    } else {
-        io::Error::other(err)
-    };
-    CoreError::from(io_error)
+    crate::winerr::from_hresult(err.code().0)
 }
 
 /// Fehler beim Öffnen der Suche. Für eine Datei statt eines Ordners meldet
