@@ -1,5 +1,5 @@
-// Kopiert die Laufzeitdateien von pdf.js (Standardschriften, WebAssembly) nach
-// public/pdfjs, damit sie ohne Netzwerk aus der App geladen werden.
+// Copies the pdf.js runtime files (standard fonts, WebAssembly) to
+// public/pdfjs so they load from the app without a network.
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 
 const root = new URL('../', import.meta.url);
