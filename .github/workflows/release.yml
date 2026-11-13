@@ -1,11 +1,14 @@
 name: Release
 
-# Ein Tag wie v0.1.0 baut die Installer und veröffentlicht sie als GitHub-Release.
-# Neue Version: `npm run version:set -- 0.2.0`, CHANGELOG.md ergänzen, committen,
-# dann `git tag -a v0.2.0 -m "eX-plorer 0.2.0" && git push origin v0.2.0`.
+# Baut die Installer und veröffentlicht sie als GitHub-Release. Zwei Wege:
+#  1. Tag pushen:  git tag -a v0.2.0 -m "eX-plorer 0.2.0" && git push origin v0.2.0
+#  2. Actions → „Release“ → „Run workflow“ (Version stammt aus package.json,
+#     der Tag wird dabei angelegt; die Datei muss dafür auf dem Standardbranch liegen).
+# Neue Version vorher: `npm run version:set -- 0.2.0` und CHANGELOG.md ergänzen.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,8 +38,9 @@ jobs:
       - name: Version prüfen (Tag = package.json = tauri.conf.json = Cargo.toml)
         shell: bash
         run: |
-          tag="${GITHUB_REF_NAME#v}"
           pkg=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="${GITHUB_REF_NAME#v}"; else tag="$pkg"; fi
+          echo "RELEASE_TAG=v$tag" >> "$GITHUB_ENV"
           conf=$(node -p "require('./src-tauri/tauri.conf.json').version")
           cargo=$(grep -m1 '^version' src-tauri/Cargo.toml | sed 's/.*"\(.*\)"/\1/')
           echo "Tag=$tag package.json=$pkg tauri.conf.json=$conf Cargo.toml=$cargo"
@@ -78,7 +82,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           flags=""
-          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
+          case "$RELEASE_TAG" in *-*) flags="--prerelease" ;; esac
+          # Bei einem Tag-Push muss der Tag existieren; beim manuellen Start legt gh ihn an.
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then flags="$flags --verify-tag"; else flags="$flags --target $GITHUB_SHA"; fi
           {
             cat release-notes.md
             echo
@@ -87,7 +93,6 @@ jobs:
             echo "**Installation:** \`eX-plorer_*_x64-setup.exe\` (pro Benutzer, ohne Administratorrechte) oder die \`.msi\` (systemweit, braucht Administratorrechte)."
             echo "Die Installer sind **nicht signiert**; Windows SmartScreen kann warnen. Prüfsummen: \`SHA256SUMS.txt\`."
           } > release-body.md
-          gh release create "$GITHUB_REF_NAME" dist-release/* \
-            --title "eX-plorer ${GITHUB_REF_NAME#v}" \
-            --notes-file release-body.md \
-            --verify-tag $flags
+          gh release create "$RELEASE_TAG" dist-release/* \
+            --title "eX-plorer ${RELEASE_TAG#v}" \
+            --notes-file release-body.md $flags

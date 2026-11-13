@@ -243,7 +243,7 @@ Eine Schwachstelle gefunden? Bitte **privat** melden – siehe [SECURITY.md](SEC
 
 Fehler melden, Ideen einbringen, Code beisteuern – siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 Neue Versionen veröffentlichst du mit `npm run version:set -- x.y.z`, einem Eintrag im
-[CHANGELOG](CHANGELOG.md) und einem Tag `vx.y.z` (der [Release-Workflow](.github/workflows/release.yml) baut und veröffentlicht).
+[CHANGELOG](CHANGELOG.md) und einem Tag `vx.y.z` – oder startest den [Release-Workflow](.github/workflows/release.yml) unter *Actions → Release → Run workflow*; er baut die Installer und veröffentlicht sie.
 
 ## Danksagung
 
