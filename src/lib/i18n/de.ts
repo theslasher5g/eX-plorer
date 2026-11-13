@@ -255,6 +255,8 @@ export const de = {
   'list.empty': 'Dieser Ordner ist leer',
   'list.emptyHint':
     'Ziehe Dateien hierher, füge sie mit Strg+V ein oder lege oben einen neuen Ordner an.',
+  'list.searching': 'Suche läuft …',
+  'list.searchingHint': 'Ich suche nach „{filter}“ in diesem Ordner und allen Unterordnern.',
   'list.noMatch': 'Keine Treffer für „{filter}“',
   'list.noMatchHint': 'Prüfe die Schreibweise oder suche nach einem kürzeren Begriff.',
   'list.resetFilter': 'Suche zurücksetzen',

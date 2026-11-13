@@ -1,0 +1,58 @@
+name: Fehlerbericht
+description: Etwas funktioniert nicht wie erwartet
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Melden! **Sicherheitsprobleme bitte nicht hier**, sondern wie in der
+        [Sicherheitsrichtlinie](../blob/main/SECURITY.md) beschrieben.
+  - type: textarea
+    id: was
+    attributes:
+      label: Was ist passiert?
+      description: Beschreibe den Fehler und was du erwartet hättest. Screenshots oder kurze GIFs helfen.
+    validations:
+      required: true
+  - type: textarea
+    id: schritte
+    attributes:
+      label: So lässt es sich nachstellen
+      placeholder: |
+        1. Spaltenansicht öffnen (Strg+3)
+        2. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version von eX-plorer
+      placeholder: z. B. 0.1.0 (steht im Namen des Installers)
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows-Version
+      placeholder: z. B. Windows 11 23H2 (Build 22631)
+    validations:
+      required: true
+  - type: dropdown
+    id: ort
+    attributes:
+      label: Wo tritt es auf?
+      multiple: true
+      options:
+        - Lokaler Ordner
+        - OneDrive
+        - Netzlaufwerk / UNC
+        - Wechseldatenträger
+        - Kontextmenü / Shell-Erweiterungen
+        - Drag & Drop
+        - Installer
+        - Sonstiges
+  - type: textarea
+    id: weiteres
+    attributes:
+      label: Weitere Angaben
+      description: Besonderheiten (sehr viele Dateien, Sicherheitssoftware, mehrere Bildschirme …).

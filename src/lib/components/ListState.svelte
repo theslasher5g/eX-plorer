@@ -8,6 +8,13 @@
   let { pane }: { pane: Pane } = $props();
 
   const filter = $derived(pane.filter.trim());
+  // Solange die Suche in Unterordnern noch läuft oder gleich startet, ist „keine Treffer“ verfrüht.
+  const searching = $derived(
+    !pane.isNetwork &&
+      pane.view !== 'tree' &&
+      (pane.search.running ||
+        (pane.search.summary === null && !pane.search.unsupported && !pane.search.failed)),
+  );
   const errorTitle = $derived.by(() => {
     const code = pane.error?.code;
     if (
@@ -48,6 +55,10 @@
     </div>
   {:else if pane.loading}
     <p>{t('list.loading')}</p>
+  {:else if filter && searching}
+    <div class="bigic"><Search size={38} strokeWidth={1.5} /></div>
+    <h2>{t('list.searching')}</h2>
+    <p>{t('list.searchingHint', { filter })}</p>
   {:else if filter}
     <div class="bigic"><Search size={38} strokeWidth={1.5} /></div>
     <h2>{t('list.noMatch', { filter })}</h2>

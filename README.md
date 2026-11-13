@@ -1,451 +1,256 @@
+<div align="center">
+
+<img src="src-tauri/icons/icon.svg" width="96" alt="eX-plorer Logo" />
+
 # eX-plorer
 
-Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
-Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
+**Ein moderner Datei-Explorer für Windows 10 und 11 im Stil des macOS Finder.**
+Schnell, aufgeräumt, mit Spaltenansicht, Suche in Unterordnern und echter Windows-Shell darunter.
 
-> **Stand: Phase 7 von 7 (alle Phasen umgesetzt).** Fenster, Theme,
-> Seitenleiste, Tabs, Navigation, Dateioperationen, Drag & Drop,
-> Live-Aktualisierung, Windows-Icons, Kontextmenü im eigenen Stil,
-> Schnellvorschau, Listen-, Kachel-, Spalten- und Baumansicht mit Limits,
-> Einstellungen, OneDrive und Netzlaufwerke, Installer (NSIS und MSI). **Bisher
-> lief nichts davon auf echtem Windows**, nur in der CI und im Browser mit
-> Demo-Daten (siehe [Bekannte Einschränkungen](#bekannte-einschränkungen)).
+[![CI](https://github.com/theslasher5g/eX-plorer/actions/workflows/ci.yml/badge.svg)](https://github.com/theslasher5g/eX-plorer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/theslasher5g/eX-plorer?display_name=tag&sort=semver)](https://github.com/theslasher5g/eX-plorer/releases/latest)
+[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
+![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
+![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-stable-DEA584?logo=rust&logoColor=white)
+![Svelte 5](https://img.shields.io/badge/Svelte-5-FF3E00?logo=svelte&logoColor=white)
 
-Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
-Bewegung) stehen in `src/app.css`, hell und dunkel folgen dem System oder lassen sich in den Einstellungen festlegen.
+[**Download**](https://github.com/theslasher5g/eX-plorer/releases/latest) ·
+[Funktionen](#funktionen) ·
+[Bedienung](#bedienung) ·
+[Selbst bauen](#selbst-bauen) ·
+[Sicherheit](#sicherheit) ·
+[Handbuch](docs/HANDBUCH.md)
 
-## Voraussetzungen
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.png">
+  <img src="docs/media/hero-light.png" alt="eX-plorer in der Spaltenansicht mit Vorschau" width="900">
+</picture>
 
-- Windows 10 (ab 1809) oder Windows 11
-- [Rust](https://rustup.rs) (stable, MSVC-Toolchain) samt „Desktopentwicklung mit C++“
-  aus den Visual Studio Build Tools
-- [Node.js](https://nodejs.org) 22 oder neuer
-- WebView2-Laufzeit (unter Windows 11 vorinstalliert)
+<sub>Screenshots und GIFs stammen aus dem Demo-Modus mit erfundenen Daten.</sub>
 
-## Starten und bauen
+</div>
 
-```bash
-npm install
-```
+---
 
-Entwicklungsmodus mit Hot-Reload:
+> [!NOTE]
+> **Frühe Version (0.1).** Vieles greift tief in Windows ein (Shell, Drag & Drop, OneDrive,
+> Netzwerk) und wurde bisher nur von wenigen Personen auf echten Rechnern geprüft.
+> Fehlerberichte sind willkommen. Die ehrlichen Grenzen stehen im
+> [Handbuch](docs/HANDBUCH.md#bekannte-einschränkungen).
 
-```bash
-npm run tauri dev
-```
+## Funktionen
 
-Release-Build mit Installern (NSIS und MSI) unter `src-tauri/target/release/bundle/`:
+<table>
+<tr>
+<td width="50%" valign="top">
 
-```bash
-npm run tauri build
-```
+### 🗂 Vier Ansichten
+**Liste**, **Kacheln**, **Spalten** wie im Finder (mit Vorschau rechts) und eine
+**Baumansicht** mit festen Obergrenzen – auch bei 100.000 Dateien flüssig, weil alles
+virtualisiert ist. `Strg+1…4` wechselt.
 
-Nur die Oberfläche im Browser, mit erfundenen Demo-Daten und ohne Zugriff auf
-das Dateisystem (praktisch für Design-Arbeit, auch unter Linux/macOS):
+</td>
+<td width="50%" valign="top">
 
-```bash
-npm run dev
-```
+### 🔎 Suche, die Unterordner kennt
+Tippen filtert sofort, danach wird im Hintergrund in **allen Unterordnern**
+gesucht (`*` und `?` als Platzhalter). Zusätzlich springt die **Tippsuche** mit den
+ersten Buchstaben zur Datei.
 
-## Prüfungen
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-```bash
-npm run check
-```
+### 🖱 Wie ein Profi-Werkzeug
+Auswahl per **Gummiband**, **Drag & Drop** mit Live-Markierung des Ziels,
+**Gruppieren** nach Name, Typ, Datum und Größe, **Tabs**, Favoriten per Rechtsklick
+anheften und per Ziehen sortieren.
 
-Im Ordner `src-tauri`:
+</td>
+<td valign="top">
 
-```bash
-cargo fmt --all --check
-```
+### 🪟 Echte Windows-Shell
+Kopieren, Verschieben und Löschen laufen über `IFileOperation` (Papierkorb,
+Konfliktdialoge). Das **Kontextmenü** kommt von Windows – 7-Zip, Git & Co. erscheinen –,
+gezeichnet wird es im Stil der App.
 
-```bash
-cargo clippy --workspace --all-targets -- -D warnings
-```
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-```bash
-cargo test --workspace
-```
+### ☁️ OneDrive und Netzwerk
+Mehrere OneDrive-Konten mit **Statussymbolen**, „Immer behalten“ und „Speicherplatz
+freigeben“ – ohne je Dateien herunterzuladen. **Netzlaufwerke** mit Zeitlimit, ohne
+dass die Oberfläche hängt; Anmeldung über den Windows-Dialog.
 
-```bash
-cargo audit
-```
+</td>
+<td valign="top">
 
-Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
-(`.github/workflows/ci.yml`); der fertige Installer hängt als Artefakt am Lauf.
+### 👁 Schnellvorschau
+`Leertaste` zeigt Bilder, Text und **PDF** (pdf.js, lokal gebündelt) – ohne Datei zu
+öffnen. Icons und Thumbnails kommen asynchron von Windows.
 
-### Messwerte (Stand Phase 7)
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-Gemessen unter Linux in der Entwicklungsumgebung, also **nicht** auf Windows:
-Zahlen zeigen die Größenordnung, nicht die Geschwindigkeit der echten
-Dateisystem-Aufrufe.
+### 🌗 Hell, Dunkel, Mica
+Folgt Windows oder ist fest wählbar; Mica-Hintergrund unter Windows 11,
+abgerundet, Segoe UI Variable.
 
-| Messung | Ergebnis |
-|---|---|
-| Kern: 100.000 Dateien auflisten (in Stapeln zu 2000) | etwa 0,5 s, Test mit Obergrenze 20 s gegen quadratisches Verhalten |
-| Oberfläche, 100.000 Einträge (Demo-Backend, Headless-Chromium) | erste Zeile nach ca. 0,35 s, Liste ~500 DOM-Knoten, Scrollen im Median 16,5 ms/Frame |
-| Strg+A auf 100.000 Einträgen | ca. 0,1 s |
-| Sortieren von 100.000 Einträgen | ca. 0,4 s |
-| Wechsel Liste / Kacheln / Spalten bei 100.000 Einträgen | unter 50 ms, 400–750 DOM-Knoten |
+</td>
+<td valign="top">
 
-Die Listen sind virtualisiert (feste Zeilenhöhe); die Zahl der DOM-Knoten hängt
-nicht von der Ordnergröße ab. Eine Messung mit echten Ordnern, Netzlaufwerken
-und Thumbnails steht aus.
+### 🔒 Sicherheit zuerst
+Minimale Tauri-Rechte, **jeder Pfad wird im Backend geprüft**, strikte CSP, nichts wird
+automatisch geöffnet. Läuft ohne Administratorrechte.
+[Mehr dazu](#sicherheit)
+
+</td>
+</tr>
+</table>
+
+### In Aktion
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/views.gif" alt="Wechsel zwischen Liste, Kacheln, Spalten und Baum" /><br><sub><b>Ansichten:</b> Liste, Kacheln, Spalten mit Vorschau, Baum</sub></td>
+<td width="50%"><img src="docs/media/search.gif" alt="Suche in Unterordnern und Tippsuche" /><br><sub><b>Suche:</b> Unterordner, Platzhalter, Tippsuche</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/drag.gif" alt="Gummiband-Auswahl, Drag und Drop, Gruppieren" /><br><sub><b>Auswahl &amp; Ziehen:</b> Gummiband, Drag &amp; Drop, Gruppieren</sub></td>
+<td><img src="docs/media/favorites.gif" alt="Kontextmenü, Favoriten anheften, Dunkelmodus" /><br><sub><b>Menü &amp; Favoriten:</b> anheften, umsortieren, dunkles Design</sub></td>
+</tr>
+</table>
+
+### Weitere Einblicke
+
+<table>
+<tr>
+<td width="33%"><img src="docs/media/context-menu.png" alt="Kontextmenü mit Untermenü"><br><sub>Kontextmenü mit Untermenüs</sub></td>
+<td width="33%"><img src="docs/media/list-grouped.png" alt="Liste gruppiert nach Änderungsdatum"><br><sub>Gruppiert nach Änderungsdatum</sub></td>
+<td width="33%"><img src="docs/media/tiles.png" alt="Kachelansicht"><br><sub>Kachelansicht</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/search.png" alt="Suchergebnisse aus Unterordnern"><br><sub>Treffer aus Unterordnern</sub></td>
+<td><img src="docs/media/onedrive.png" alt="OneDrive mit Statussymbolen"><br><sub>OneDrive-Status</sub></td>
+<td><img src="docs/media/network.png" alt="Netzlaufwerke mit Status"><br><sub>Netzlaufwerke</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/settings.png" alt="Einstellungen"><br><sub>Einstellungen</sub></td>
+<td><img src="docs/media/quicklook.png" alt="Schnellvorschau"><br><sub>Schnellvorschau (PDF)</sub></td>
+<td><img src="docs/media/tree.png" alt="Baumansicht"><br><sub>Baumansicht mit Limits</sub></td>
+</tr>
+</table>
+
+## Installieren
+
+1. Lade vom [neuesten Release](https://github.com/theslasher5g/eX-plorer/releases/latest) eine der Dateien:
+   - **`eX-plorer_…_x64-setup.exe`** – installiert **pro Benutzer**, ohne Administratorrechte *(empfohlen)*
+   - **`eX-plorer_…_x64_de-DE.msi`** – systemweit, fragt nach Administratorrechten
+2. Prüfe bei Bedarf die Summe mit `SHA256SUMS.txt` (`Get-FileHash <Datei>` in PowerShell).
+3. Starten und loslegen. Die WebView2-Laufzeit (unter Windows 11 vorhanden) wird bei Bedarf nachgeladen.
+
+> [!WARNING]
+> Die Installer sind **nicht signiert**. Windows SmartScreen zeigt deshalb ggf. „Der
+> Computer wurde durch Windows geschützt“ – über *Weitere Informationen → Trotzdem ausführen*
+> geht es weiter. Wer dem nicht traut, baut die App [selbst](#selbst-bauen).
+
+**Voraussetzungen:** Windows 10 (ab 1809) oder Windows 11, x64.
 
 ## Bedienung
 
 | Aktion | Eingabe |
 | --- | --- |
-| Ordner öffnen | Doppelklick oder Eingabetaste |
-| Zurück / Vor | Alt+Links / Alt+Rechts, Maustasten 4/5 |
-| Übergeordneter Ordner | Alt+Hoch oder Rücktaste |
-| Pfad eintippen | Strg+L oder F4, oder Klick rechts neben den Pfad |
-| Im Ordner suchen | Strg+F |
-| Neuer Tab / Tab schließen / Tab wechseln | Strg+T / Strg+W oder Mittelklick / Strg+Tab |
-| Aktualisieren | F5 |
-| Auswahl | Klick, Strg+Klick, Umschalt+Klick, Pfeiltasten, Strg+A |
-| Sortieren, versteckte Elemente anzeigen | Spaltenüberschrift oder Sortier-Menü in der Werkzeugleiste |
-| Kopieren / Ausschneiden / Einfügen | Strg+C / Strg+X / Strg+V (auch mit dem Explorer und anderen Programmen) |
-| Löschen | Entf (Papierkorb, mit Rückfrage), Umschalt+Entf (endgültig, mit Rückfrage) |
-| Umbenennen | F2; Eingabe übernimmt, Esc verwirft, Wegklicken übernimmt |
-| Neuer Ordner | Strg+Umschalt+N oder Knopf in der Werkzeugleiste |
-| Verschieben / Kopieren per Maus | Ziehen auf Ordner, Tab, Pfadabschnitt oder Seitenleiste; Strg erzwingt Kopieren, Umschalt Verschieben |
-| In andere Programme ziehen | Ausgewählte Dateien aus dem Fenster hinausziehen (dann übernimmt der echte Windows-Drag) |
-| Datei öffnen | Doppelklick oder Eingabetaste (ausführbare Typen erst nach Rückfrage) |
-| Schnellvorschau | Leertaste; Pfeiltasten wechseln die Datei, Bild auf/ab bei PDF-Seiten, Esc oder Leertaste schließen |
-| Gruppieren | Sortier-Menü → „Gruppieren nach“ (Liste und Kacheln); Klick auf eine Gruppenkopfzeile wählt die Gruppe |
-| Mehrere Dateien ziehend wählen | Maustaste auf freier Fläche drücken und ziehen; Strg/Umschalt behalten die Auswahl |
-| Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Spalten, Strg+4 Baum, oder der Umschalter in der Werkzeugleiste |
-| Spalten bedienen | Klick auf einen Ordner öffnet ihn rechts daneben, Klick auf eine Datei zeigt die Vorschau; Pfeil auf/ab wählt, Pfeil rechts/links wechselt die Spalte, Eingabetaste bzw. Doppelklick öffnet (Ordner: der Tab wechselt dorthin) |
-| Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
-| Favoriten anheften | Rechtsklick auf einen Ordner → „An Schnellzugriff anheften“ (bzw. „An Favoriten anheften“); Rechtsklick auf die leere Fläche heftet den geöffneten Ordner an; lösen per Rechtsklick auf den Eintrag in der Seitenleiste oder im Ordner-Menü; Reihenfolge per Ziehen (oder Alt+Pfeil hoch/runter) |
-| Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
-| OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
-| Netzwerk | Eintrag „Netzlaufwerke“ in der Seitenleiste, oder `\\server\freigabe` in die Pfadleiste tippen |
-| Kontextmenü | Menütaste oder Umschalt+F10 (an der markierten Zeile) bzw. Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge); „Weitere Optionen …“ zeigt das Windows-Menü |
+| Ansicht wechseln | `Strg+1` Liste · `Strg+2` Kacheln · `Strg+3` Spalten · `Strg+4` Baum |
+| Suchen (auch Unterordner) | `Strg+F`, dann tippen – `*` und `?` sind Platzhalter |
+| Datei anspringen | Erste Buchstaben des Namens tippen |
+| Schnellvorschau | `Leertaste` |
+| Pfad eingeben | `Strg+L` oder `F4` |
+| Zurück / Vor / Hoch | `Alt+←` / `Alt+→` / `Alt+↑` (oder Maustasten 4/5, Rücktaste) |
+| Neuer / geschlossener Tab, wechseln | `Strg+T` / `Strg+W` / `Strg+Tab` |
+| Kopieren, Ausschneiden, Einfügen | `Strg+C` / `Strg+X` / `Strg+V` (auch mit dem Windows-Explorer) |
+| Umbenennen, Löschen | `F2` · `Entf` (Papierkorb), `Umschalt+Entf` (endgültig) |
+| Neuer Ordner | `Strg+Umschalt+N` |
+| Kontextmenü | Rechtsklick, `Menütaste` oder `Umschalt+F10` |
+| Favoriten anheften | Rechtsklick auf einen Ordner bzw. auf die leere Fläche |
+| Mehrere Dateien wählen | Mit der Maus auf freier Fläche ziehen (`Strg`/`Umschalt` behalten die Auswahl) |
+| Einstellungen | `Strg+,` |
+
+Alle Abläufe, Grenzen und Hinweise stehen im [Handbuch](docs/HANDBUCH.md#bedienung).
+
+## Selbst bauen
+
+Voraussetzungen: [Rust](https://rustup.rs) (stable, MSVC-Toolchain, „Desktopentwicklung mit C++“ aus den
+Visual-Studio-Build-Tools), [Node.js](https://nodejs.org) 22 oder neuer, Windows 10/11.
+
+```bash
+git clone https://github.com/theslasher5g/eX-plorer.git
+cd eX-plorer
+npm install
+npm run tauri dev        # Entwicklungsmodus mit Hot-Reload
+npm run tauri build      # Installer (NSIS + MSI) unter src-tauri/target/release/bundle/
+```
+
+Nur die Oberfläche im Browser, mit erfundenen Demo-Daten und ohne Zugriff aufs Dateisystem
+(auch unter Linux/macOS nützlich):
+
+```bash
+npm run dev
+```
+
+Prüfungen (laufen genauso in der CI auf `windows-latest`):
+
+```bash
+npm run check
+cd src-tauri
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo audit
+```
 
 ## Aufbau
 
 ```
+src/                    Svelte 5 + TypeScript (Oberfläche, Stores, Demo-Backend)
 src-tauri/
-  crates/core/        Plattformneutraler Kern, ohne Tauri testbar
-    src/path/         Pfadvalidierung und -normalisierung
-    src/listing/      Ordner auflisten (Windows: FindFirstFileExW)
-    src/ops/          Planung von Kopieren/Verschieben/Löschen/Umbenennen, Neuer Ordner
-    src/tree/         Baum-Scan mit Limits (Tiefe, gesamt, pro Ordner), abbrechbar
-    src/settings.rs   Einstellungen mit erzwungenen Wertebereichen
-    src/preview.rs    Vorschau-Regeln (Art, Limits) und sichere Text-Dekodierung
-    src/imaging.rs    BGRA → PNG für Icons und Thumbnails
-    src/exec.rs       Welche Dateitypen beim Öffnen eine Rückfrage brauchen
-    src/attrs.rs      Cloud-Platzhalter, Sync-Zustand, Pin-Attribute
-    src/network.rs    Fehlerklassifizierung, Prüfung von Servereingaben
-    src/timeout.rs    Zeitlimit und Abkühlzeit für blockierende Netzwerkaufrufe
-    src/onedrive.rs   OneDrive-Konten zusammenführen (Registry, Umgebung)
-    src/watch.rs      Ordner-Watcher (notify), gebündelte Meldungen
-    src/winerr.rs     HRESULT/Win32-Fehlercodes → Fehlerarten
-  src/
-    commands/         Tauri-Commands (einziger Weg vom Frontend ins System)
-    shell/            Windows-Shell-Aufrufe: bekannte Ordner, Laufwerke,
-                      IFileOperation, Zwischenablage (CF_HDROP), OLE-Drag, Tastenstatus,
-                      Icons/Thumbnails, Kontextmenü (eigener Thread), Datei öffnen,
-                      OneDrive (Konten, Pin/Unpin), Registry (nur lesend),
-                      Netzwerk (Laufwerke, Anmeldung, Freigaben)
-    protocol.rs       URI-Schema shellimg (Icons/Thumbnails als PNG)
-    workers.rs        Arbeits-Pool für Bildanfragen (neueste zuerst, begrenzte Warteschlange)
-    state.rs          Fenstermaterial (Mica)
-    error.rs          Fehler mit stabilen Codes fürs Frontend
-  capabilities/       Tauri-Berechtigungen des Fensters
-src/
-  lib/api/            Typisierte Backend-Schnittstelle, Demo-Backend für den Browser
-  lib/stores/         Ordneransicht (Pane), Tabs, Dateioperationen, Drag & Drop,
-                      Schnellvorschau, Toast und Bestätigungsdialog
-  lib/components/     Titelleiste mit Tabs, Seitenleiste, Werkzeugleiste, Pfadleiste,
-                      Sortier-Menü, Liste, Statusleiste
-  app.css             Design-Tokens und gemeinsame Bausteine
-  lib/i18n/           Texte (derzeit Deutsch)
+  crates/core/          Plattformneutraler Kern: Pfadprüfung, Listing, Suche, Baum, Einstellungen …
+  src/                  Tauri-App: Commands und dünne Windows-Schicht (Shell, COM, Registry, WNet)
+docs/                   Handbuch, Medien
 ```
+
+Das Frontend hat **keinen** Dateisystemzugriff; es spricht nur mit eigenen, validierenden
+Tauri-Commands. Der Kern ist ohne Windows testbar (`cargo test -p explorer-core`), die
+Windows-Aufrufe stehen in kleinen, abgegrenzten Modulen. Mehr im [Handbuch](docs/HANDBUCH.md#aufbau).
 
 ## Sicherheit
 
-- **Kein Dateisystemzugriff im Frontend.** Es gibt keine Tauri-Plugins für
-  Dateisystem oder Shell. Die Capabilities erlauben nur Fenstersteuerung und
-  Fenster-Events; alles andere läuft über eigene Commands.
-- **Jeder Pfad wird im Backend geprüft** (`crates/core/src/path`): absolut,
-  keine `..`-Komponenten, keine Geräte-Namensräume (`\\.\`, `\\?\`), keine
-  Alternate Data Streams, keine reservierten Namen (CON, NUL, COM1 …), keine
-  Komponenten mit Punkt/Leerzeichen am Ende, Längenbegrenzung. Zugriffe nutzen
-  danach die `\\?\`-Form, damit Windows den geprüften Pfad nicht umdeutet.
-- **Auflisten liest nur Metadaten.** Keine Datei wird geöffnet; OneDrive-
-  Platzhalter werden dadurch nicht heruntergeladen.
-- **Nichts wird automatisch geöffnet oder ausgeführt.** Dateien öffnen sich nur
-  auf Doppelklick, Eingabetaste oder Menübefehl, und Typen, die Code ausführen
-  können (exe, bat, ps1, msi, lnk, js …), erst nach ausdrücklicher Bestätigung.
-  Die Liste dieser Typen steht im Backend (`exec.rs`, getestet).
-- **OneDrive arbeitet nur mit Metadaten.** Der Sync-Zustand kommt aus den
-  Verzeichniseinträgen (Attribute, Reparse-Tag, Cloud-Files-API
-  `CfGetPlaceholderStateFromFindData`), „Behalten“ und „Freigeben“ setzen nur
-  die Attribute PINNED bzw. UNPINNED; Herunterladen und Freigeben erledigt der
-  OneDrive-Client. Die Registry wird nur gelesen, und das Setzen ist auf
-  Pfade innerhalb der erkannten OneDrive-Ordner beschränkt (nicht auf deren
-  Wurzel).
-- **Netzwerkzugriffe haben ein Zeitlimit und blockieren nie.** Jeder Zugriff
-  läuft in einem eigenen Thread; nach 4 s (Prüfung), 8 s (Freigaben) bzw. 10 s
-  (Ordner) bekommt die Oberfläche „nicht erreichbar“. Ein zeitüberschrittener
-  Server wird 15 s lang als hängend geführt, weitere Anfragen scheitern dann
-  sofort, statt hängende Threads aufzustauen. Auf Netzpfaden gibt es keine
-  Icons, Thumbnails und keine automatische Tiefensuche (der Baum liest eine
-  Ebene).
-- **Anmeldung über Windows, nicht über die App.** Die App hat keine
-  Passwortfelder und speichert nichts: `WNetAddConnection3W` öffnet den
-  Windows-Dialog und legt die Daten auf Wunsch in der
-  Anmeldeinformationsverwaltung ab. Das war deine Vorgabe und weicht bewusst
-  vom Anmeldedialog im Design ab, der Felder in der App zeigt.
-- **Cloud-Platzhalter werden nie gelesen.** Für „nur in der Cloud“-Dateien
-  (OneDrive) erzeugt das Backend weder Icons noch Thumbnails noch Vorschauen;
-  die Attribute werden vorher per Metadaten geprüft. Dasselbe gilt für Icons
-  auf Netzwerkpfaden.
-- **Vorschau ist begrenzt:** Bilder bis 40 MiB, PDF bis 64 MiB, Text die ersten
-  256 KiB. SVG wird als Text gezeigt, nie als Bild, damit garantiert nichts
-  ausgeführt wird. Text wird über `textContent` angezeigt, nie als HTML.
-- **Operationen sind doppelt abgesichert.** Der Kern plant (`ops`): keine
-  Laufwerks-/Freigabe-Wurzeln, kein Ordner in sich selbst, doppelte und
-  verschachtelte Auswahl wird zusammengefasst, Obergrenze von 20.000 Elementen.
-  Ausgeführt wird über die Windows-Shell, die Papierkorb und Konflikte kennt.
-- **Löschen fragt immer nach.** Wo es keinen Papierkorb gibt (Netzlaufwerk, USB,
-  UNC), sagt der Dialog das deutlich; die Shell fragt zusätzlich selbst.
-- **Baum-Scan ist begrenzt und abbrechbar.** Tiefe, Gesamtzahl und Einträge
-  pro Ordner werden im Backend erzwungen (auch gegen manipulierte Aufrufe),
-  Symlinks und Junctions nie automatisch betreten, auf Netzlaufwerken wird
-  automatisch nur eine Ebene gelesen. Der Speicherbedarf pro Ordner hängt
-  nicht von dessen Größe ab.
-- **Strikte CSP**, keine Remote-Inhalte. Lockerungen und ihr Grund:
-  `style-src 'unsafe-inline'` (Svelte setzt Inline-Styles für die virtualisierte
-  Liste), `script-src 'wasm-unsafe-eval'` (pdf.js nutzt WebAssembly für
-  JPEG2000; erlaubt kein `eval`), `connect-src 'self'` und `worker-src 'self'
-  blob:` (pdf.js lädt Schriften und seinen Worker aus der App),
-  `img-src 'self' blob: http://shellimg.localhost` (Vorschau, Icons und
-  Menü-Symbole als Blob-URL; bewusst kein `data:`) und
-  `font-src 'self' data: blob:` (von pdf.js erzeugte Schriften). Dazu
-  `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` und
-  `frame-ancestors 'none'`.
-- **Dateinamen** werden nur als Text gerendert, nie über `{@html}` oder `innerHTML`.
-- `unsafe` steht nur in `crates/core/src/listing/win.rs` und
-  `src-tauri/src/shell/`. `unwrap()`/`expect()` sind per Clippy-Lint verboten.
-- Das Programm braucht keine Admin-Rechte; der NSIS-Installer installiert pro
-  Benutzer (`installMode: currentUser`). Der MSI-Installer ist von Tauri/WiX
-  systemweit angelegt und fragt deshalb nach Administratorrechten.
-- **Durchsicht in Phase 7** (Code gelesen, nicht von außen geprüft): Jeder
-  Command, der einen Pfad nimmt, ruft `validate_path` auf; Menü-Befehle werden
-  gegen die Einträge des gerade offenen Menüs geprüft, bevor `InvokeCommand`
-  läuft; es gibt keine Plugins für Dateisystem oder Shell, keine Remote-URLs,
-  kein `eval`; Dateinamen erreichen nie `{@html}`. `cargo audit` meldet keine
-  Schwachstellen, nur zwei Hinweise auf nicht mehr gepflegte GTK-Bibliotheken
-  (Linux-Abhängigkeiten von Tauri, in Windows-Builds nicht enthalten). **Eine
-  unabhängige Sicherheitsprüfung ersetzt das nicht.**
+- **Minimale Rechte:** keine Tauri-Plugins für Dateisystem oder Shell, Capabilities nur für Fenstersteuerung.
+- **Jeder Pfad wird im Backend geprüft** – Traversal, Junctions, reservierte Namen, Alternate Data Streams, lange Pfade.
+- **Strikte CSP**, keine Remote-Inhalte, kein `eval`, Dateinamen nie als HTML.
+- **Nichts wird automatisch geöffnet oder ausgeführt**; Programme (exe, bat, ps1 …) nur nach Bestätigung.
+- **Nur Metadaten beim Auflisten:** OneDrive-Platzhalter werden nie gelesen, Netzwerkpfade haben Zeitlimits.
+- `unsafe` nur in kleinen Windows-Modulen, `unwrap()` per Lint verboten, `clippy -D warnings` und `cargo audit` in der CI.
 
-## Bekannte Einschränkungen
+Eine Schwachstelle gefunden? Bitte **privat** melden – siehe [SECURITY.md](SECURITY.md).
 
-- **Phase 2 bis 6 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
-  Zwischenablage, Drag in andere Programme, Icon-Gewinnung, das native
-  Kontextmenü und das Öffnen von Dateien greifen tief in Windows ein und lassen
-  sich nur dort prüfen. Kompiliert und statisch geprüft sind sie, die Abläufe
-  der Oberfläche liefen im Browser gegen ein Demo-Backend. Bitte besonders
-  testen: Strg+C im Explorer und Strg+V hier (und umgekehrt), Dateien in den
-  Explorer und aus ihm ziehen, Rechtsklick (erscheint z. B. 7-Zip?), Icons und
-  Schnellvorschau in einem Ordner mit vielen Bildern.
-- **Kontextmenü (eigene Darstellung):** Windows baut das klassische Menü auf
-  (wie unter „Weitere Optionen anzeigen“ in Windows 11, also mit 7-Zip, Git,
-  „Senden an“ usw.), aber die App zeigt es nicht an: Das Backend liest Text,
-  Symbol, Häkchen, Untermenüs und Kürzel aus, die Oberfläche zeichnet sie im
-  Stil der App (Hell/Dunkel, runde Ecken; Maus und Tastatur: Pfeile, Rechts/Links
-  für Untermenüs, Eingabe, Esc). Ein Klick führt den Befehl über Windows aus;
-  Untermenüs werden erst beim Aufklappen geladen. Eigene Einträge sind nicht
-  darstellbar, wenn sie sich nur selbst zeichnen („owner-drawn“, ohne Text oder
-  mit Rückruf-Symbol); dafür gibt es unten **„Weitere Optionen …“**, das das
-  echte Windows-Menü an der Mausposition zeigt. Ausschneiden, Kopieren,
-  Einfügen, Löschen, Umbenennen und Öffnen führt die App selbst aus (damit
-  Rückfragen und Anzeige stimmen), alles andere die Shell. Das Menü öffnet an
-  der Mausposition. Einträge moderner Paket-Apps, die nur im neuen Menü stehen,
-  fehlen teilweise. **Noch nicht auf echtem Windows gesehen:** Darstellung der
-  Symbole (Alphakanal), Untermenüs bestimmter Erweiterungen und die Reihenfolge
-  der Einträge sollten beim ersten Test geprüft werden. „Neu“-Einträge der
-  leeren Fläche legen Dateien an, wählen sie aber
-  nicht zum Umbenennen aus.
-- **Icons:** Dateien zeigen das Windows-Icon bzw. Thumbnail (32 px, nur
-  sichtbare Zeilen, drei Arbeits-Threads), solange es geladen wird oder wenn
-  nichts erzeugt werden darf (Cloud, Netzwerk) das gezeichnete Typ-Symbol.
-  Ordner behalten das gezeichnete Symbol des Designs. Das Backend rechnet
-  vormultiplizierte Alphawerte zurück; bei teiltransparenten Randpixeln kann
-  das minimal abweichen.
-- **Thumbnails** erscheinen bisher nur als Listen-Icon und in der
-  Schnellvorschau. Eine Kachelansicht, in der sie groß zur Geltung kommen,
-  fehlt noch; auf Netzlaufwerken gibt es sie auch dort nicht automatisch.
-- **Schnellvorschau:** Bilder, Text und PDF. Andere Typen zeigen Name, Art,
-  Größe, Datum und, falls Windows eines liefert, ein großes Thumbnail. Keine
-  Wiedergabe von Video oder Audio, bei PDF keine Textauswahl und keine Links.
-  PDFs mit Schriften, die nur über Adobe-CMaps (v. a. CJK) definiert und nicht
-  eingebettet sind, werden evtl. falsch dargestellt; die CMaps liegen nicht bei.
-  Die App wächst durch pdf.js um rund 4 MB, geladen wird es erst beim ersten PDF.
-- **Dateien auf Netzlaufwerken** werden für die Vorschau gelesen (auf
-  ausdrückliche Handlung); dafür gibt es noch kein Zeitlimit, ebenso nicht
-  für Dateioperationen (Kopieren, Löschen). Dort zeigt Windows seinen eigenen
-  Fortschritts- und Fehlerdialog.
-- **Netzwerk:**
-  - Es gibt keine automatische Suche nach Rechnern im Netz, denn Windows
-    kann das selbst kaum noch zuverlässig. Die Liste „Freigaben im Netzwerk“
-    zeigt die Server, die du hinzufügst (gespeichert in den Einstellungen);
-    zugeordnete Laufwerke erscheinen automatisch.
-  - Freigaben werden mit `NetShareEnum` gelistet, Verwaltungsfreigaben
-    (`C$`, `IPC$`) bleiben ausgeblendet. Manche Server verweigern das
-    Auflisten, dann hilft nur das direkte Eintippen von `\\server\freigabe`.
-  - „Anmelden“ an einem Server verbindet `\\server\IPC$`; das schaltet die
-    Freigabe-Liste frei, ordnet aber keinen Laufwerksbuchstaben zu. Neue
-    Laufwerksbuchstaben vergibt die App nicht (das macht der Explorer unter
-    „Netzlaufwerk verbinden“); ein bestehendes Laufwerk lässt sich neu
-    verbinden.
-  - Bei Windows-Fehlern, die ich nicht zuordnen kann, steht „nicht
-    erreichbar“. „Zugriff verweigert“ an der Wurzel einer Freigabe gilt als
-    „Anmeldung erforderlich“.
-  - Der Menü-Thread des Kontextmenüs ist einzeln: Hängt ein Rechtsklick auf
-    einem toten Netzpfad, warten weitere Menüs, bis er zurückkehrt.
-- **Fortschritt und Konflikte zeigt Windows an**, nicht die App: Bei großen
-  Vorgängen erscheint der gewohnte Windows-Dialog, ebenso bei Namenskonflikten.
-  Eine eigene Fortschrittskarte gibt es nicht.
-- **Kein Rückgängig in der App.** Gelöschtes lässt sich im Papierkorb
-  wiederherstellen; Strg+Z gibt es nicht.
-- **Drops aus anderen Programmen** werden vom Fenster als Kopie gemeldet. Ob
-  daraus Kopieren oder Verschieben wird, entscheidet die App: gleiches Laufwerk
-  verschiebt, anderes kopiert, Strg und Umschalt überstimmen das. Der Explorer
-  löscht die Quelle deshalb nicht selbst.
-- **Live-Aktualisierung** beobachtet nur die Ordner der offenen Tabs, nicht
-  rekursiv und nicht auf Netzlaufwerken (dort hilft F5). Sehr viele schnelle
-  Änderungen werden gebündelt, die Anzeige kann um Sekundenbruchteile nachhängen.
-- **Pfade werden in normaler Form an die Shell gegeben**, Pfade über 260 Zeichen
-  funktionieren nur, wenn Windows lange Pfade aktiviert hat.
-- **Baumansicht:** Sie zeigt und öffnet, aber sie bearbeitet nicht: Kopieren,
-  Löschen, Umbenennen, Ziehen und die Schnellvorschau gibt es dort nicht
-  (Rechtsklick zeigt das Windows-Menü, daraus wirkt nur „Öffnen“ in der App).
-  Sie aktualisiert sich nicht live; ein Wechsel des Ordners, geänderte Limits
-  oder F5 scannen neu, und dabei klappen von Hand geöffnete Ordner wieder zu.
-  Sortiert wird immer nach Name (Ordner zuerst); Suche und Sortier-Menü wirken
-  dort nicht. Beim Gesamtlimit liest der Scan ebenenweise, die oberen Ebenen
-  sind also vollständig. Ein Ordner mit sehr vielen Einträgen wird trotz
-  Limit einmal ganz durchgezählt (für „… und N weitere“), das kann bei
-  Millionen Einträgen einige Sekunden dauern, ist aber abbrechbar.
-- **Kachelansicht:** Thumbnails kommen von Windows in 256 px. Ordner zeigen das
-  gezeichnete Symbol, keine Inhaltsvorschau.
-- **Spaltenansicht (wie im Finder):** Jede Spalte ist ein eigener Ordner mit
-  eigener Auswahl; Kopieren, Ausschneiden, Einfügen, Löschen, Umbenennen, Neuer
-  Ordner, Kontextmenü, Ziehen und Schnellvorschau wirken auf die aktive Spalte
-  (die mit der kräftigen Markierung). Sortierung und versteckte Dateien gelten
-  für alle Spalten, die Suche nur für die erste. Die Vorschau rechts zeigt
-  Symbol bzw. Thumbnail, Art, Größe und Datum; Cloud-Dateien bekommen kein
-  Thumbnail. Die Breadcrumb zeigt den Ordner der ersten Spalte, nicht den
-  der tiefsten. Die Spaltenbreite ist fest. Alle offenen Spalten werden
-  live beobachtet (insgesamt höchstens 64 Ordner über alle Tabs).
-- **Gruppierung** (Sortier-Menü, „Gruppieren nach“) gibt es in Liste und
-  Kacheln: nach Name (Anfangsbuchstabe), Typ, Änderungsdatum (Heute, Gestern,
-  Diese Woche … wie im Explorer) und Größe (Leer bis Gigantisch, Ordner
-  getrennt), aufsteigend oder absteigend. Ein Klick auf eine Gruppenkopfzeile
-  markiert die ganze Gruppe (Strg: zusätzlich). Gruppen lassen sich nicht
-  einklappen, und in Spalten- und Baumansicht gibt es keine Gruppierung. Die
-  Gruppe gilt pro Tab und wird nicht gespeichert. Die Datumsgruppen beziehen
-  sich auf den Moment der Berechnung (Mitternacht ändert sie erst beim
-  nächsten Sortieren oder Laden).
-- **Ziehen innerhalb der App läuft ohne Windows-Drag:** Solange der Zeiger im
-  Fenster ist, zieht die App selbst (Ziel blau markiert, Hinweis „Nach … verschieben/
-  kopieren“ am Zeiger, Esc bricht ab, Strg kopiert, Umschalt verschiebt). Ein
-  blockierender Windows-Drag hielt die Oberfläche an, sodass das Ziel nicht live
-  markiert wurde. Erst wenn der Zeiger das Fenster verlässt, startet der echte
-  Windows-Drag für andere Programme. Das Verlassen erkennt die App über
-  `mouseout` ohne Ziel; **auf Windows noch nicht gesehen** (insbesondere der
-  Übergang am Fensterrand). Beim Ziehen gibt es kein automatisches Scrollen.
-- **Gummiband-Auswahl:** In Liste, Kacheln und Spalten wählt Ziehen mit der
-  Maus auf freier Fläche alles aus, was das Rechteck berührt; Strg oder
-  Umschalt behalten die bisherige Auswahl. Am oberen/unteren Rand scrollt die
-  Fläche mit (auch in sehr langen Ordnern). In der Liste zählen Zeilen ab dem
-  Berühren in der Höhe, das Rechteck muss die Zeile also nicht an ihrem Namen
-  treffen. Das Ziehen beginnt nur auf freier Fläche; von einer Zeile aus
-  startet wie bisher das Ziehen der Dateien.
-- **Favoriten / Schnellzugriff:** Angeheftete Ordner stehen in der Seitenleiste
-  unter „Favoriten“ hinter den festen Einträgen und werden in den Einstellungen
-  gespeichert (höchstens 40, nur gültige Pfade). Es sind die **Favoriten der
-  App**, nicht der Windows-Schnellzugriff: Dessen angeheftete und häufige
-  Ordner liest die App nicht, und „An Schnellzugriff anheften“ im Menü wirkt
-  nur auf die App-Favoriten, nicht auf den Explorer. Angeheftet und gelöst
-  wird nur über Rechtsklick-Menüs (kein Knopf in der Werkzeugleiste). In der
-  Seitenleiste lassen sich angeheftete Ordner per Ziehen umsortieren (blaue
-  Linie zeigt die Einfügestelle, Esc bricht ab; Alt+Pfeil hoch/runter am
-  fokussierten Eintrag als Tastatur-Alternative); die festen Einträge bleiben
-  oben. Ein gelöschter Ordner bleibt stehen, bis du ihn löst.
-- **Einstellungen** (vier Bereiche wie im Design, Strg+,): *Darstellung*
-  (Erscheinungsbild Hell / Dunkel / Automatisch, Dateiendungen anzeigen,
-  versteckte Dateien, Startansicht neuer Tabs, Kachelgröße), *Baumansicht*
-  (Tiefe, Einträge gesamt und pro Ordner), *OneDrive* (Sync-Status anzeigen,
-  erkannte Konten) und *Netzwerk* (Zeitlimit 5–60 s). „Standardwerte“ setzt
-  nur den gerade offenen Bereich zurück, nie die Serverliste. Das
-  Erscheinungsbild setzt auch das Fenster-Thema (Titelleiste, Mica); bei
-  „Automatisch“ folgt die App Windows. Ohne Endungen stehen Dateien ohne
-  Endung in der Liste, beim Umbenennen gilt weiter der volle Name. Das
-  Zeitlimit gilt für Ordner im Netzwerk (Standard 10 s); Erreichbarkeits-
-  prüfung (40 %), Freigabelisten (80 %) und Baum-Ebenen (150 %) leiten sich
-  davon ab. Die Einstellungen liegen als `settings.json` im Konfigordner der App.
-- **Aus dem Design bewusst nicht übernommen:** „Dateien bei Bedarf
-  herunterladen“ und „Speicherplatz automatisch freigeben“ (das steuert der
-  OneDrive-Client, die App lädt nie Inhalte), „Netzlaufwerke beim Anmelden
-  verbinden“ (macht Windows selbst) und „Freigaben automatisch suchen“ (die App
-  zeigt nur Freigaben der Server, die du hinzufügst, keine Netzwerksuche).
-- **Die Ansicht gilt pro Tab** und wird nicht gespeichert; neue Tabs starten
-  mit der Startansicht aus den Einstellungen.
-- **Symbole sind gezeichnet, nicht von Windows**: Ordnersymbol und farbige
-  Typ-Kürzel aus dem Design. Echte Windows-Icons und Thumbnails kommen in
-  Phase 3; die Typ-Spalte leitet sich bis dahin aus der Endung ab.
-- **Tabs** merken sich Pfad, Verlauf, Ansicht, Sortierung und Auswahl, aber nicht die
-  Scrollposition, und werden beim Beenden nicht gespeichert.
-- **Netzlaufwerke** werden in der Seitenleiste angezeigt, aber noch ohne
-  Timeout und Offline-Status geöffnet. Ein nicht erreichbares Laufwerk friert
-  die Oberfläche nicht ein, die Anzeige wartet aber, bis Windows aufgibt.
-- **OneDrive:**
-  - Konten kommen aus der Registry (`HKCU\Software\Microsoft\OneDrive\Accounts`)
-    und den Umgebungsvariablen `OneDrive`, `OneDriveConsumer`,
-    `OneDriveCommercial`, ohne Doppelte. Nicht erkannt werden zu Bibliotheken
-    synchronisierte SharePoint-Ordner außerhalb des Konto-Ordners.
-  - Der Status steht in der Typ-Spalte (Liste) bzw. als Eckmarke (Kacheln),
-    nicht in der Baumansicht. „Wird synchronisiert“ gilt auch für normale
-    Dateien im OneDrive-Ordner, die der Client noch nicht umgewandelt hat;
-    versteckte und Systemdateien (desktop.ini) haben keinen Status. Pausiert
-    OneDrive, bleibt ein Eintrag entsprechend lange „Synchronisiert …“.
-  - Die beiden Aktionen kommen im Kontextmenü; hat OneDrive sie schon selbst
-    im Menü (deutsch oder englisch beschriftet), fügt die App sie nicht ein.
-    Bei anderer Windows-Sprache können sie doppelt erscheinen.
-  - Bei Ordnern wird das Attribut am Ordner gesetzt; ob OneDrive es auf den
-    bestehenden Inhalt anwendet, entscheidet der Client. Der Status ändert sich
-    erst, wenn OneDrive reagiert hat.
-  - Die Cloud-Files-API (`cldapi.dll`) gibt es ab Windows 10 1709.
-- **Streng geprüfte Pfade**: Ordner, deren Name auf Punkt oder Leerzeichen
-  endet oder ein reservierter Gerätename ist (z. B. von WSL angelegt), lassen
-  sich nicht öffnen. Dateinamen mit ungültigem UTF-16 werden mit
-  Ersatzzeichen angezeigt.
-- **Mica** gibt es nur unter Windows 11; Windows 10 bekommt einen deckenden
-  Hintergrund. Wegen der eigenen Titelleiste fehlt das Snap-Layout-Flyout beim
-  Überfahren von „Maximieren“ (Win+Z und Ziehen an den Rand funktionieren).
-- **Getestet** wurde bisher: Kernlogik per Unit-Tests (u. a. Pfadvalidierung,
-  Operationsplanung, Sync-Zustand und OneDrive-Konten, Netzwerk-Fehlercodes,
-  Servereingaben und das Zeitlimit mit Abkühlzeit, Watcher, Baum-Limits mit 100.000 Dateien in einem Ordner
-  und einer Link-Endlosschleife), Windows-Code per Cross-Kompilierprüfung unter
-  Linux und in der CI auf Windows, Oberfläche im Browser gegen das
-  Demo-Backend (auch mit 100.000 Einträgen). Ein Test der fertigen App auf
-  echtem Windows steht aus.
+## Mitmachen
 
-## Fahrplan
+Fehler melden, Ideen einbringen, Code beisteuern – siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+Neue Versionen veröffentlichst du mit `npm run version:set -- x.y.z`, einem Eintrag im
+[CHANGELOG](CHANGELOG.md) und einem Tag `vx.y.z` (der [Release-Workflow](.github/workflows/release.yml) baut und veröffentlicht).
 
-1. ✅ Projekt-Setup, Fenster, Theme, Seitenleiste, Ordner auflisten und navigieren
-2. ✅ Dateioperationen, Drag & Drop, Tabs, Live-Aktualisierung
-3. ✅ Icons, Thumbnails, Kontextmenü, Schnellvorschau, Datei öffnen
-4. ✅ Baumansicht mit Limits, Abbruch und Export; dazu Kachelansicht und Einstellungen
-5. ✅ OneDrive-Integration
-6. ✅ Netzlaufwerke
-7. ✅ Feinschliff: Messwerte, Tests, Sicherheitsdurchsicht, Installer
+## Danksagung
 
-Nach Phase 7 dazugekommen: Spaltenansicht, Kontextmenü im eigenen Stil,
-Gruppierung und Gummiband-Auswahl.
+Gebaut mit [Tauri](https://tauri.app), [Svelte](https://svelte.dev), [pdf.js](https://mozilla.github.io/pdf.js/),
+[Lucide](https://lucide.dev) und dem [`windows`-Crate](https://github.com/microsoft/windows-rs).
+Das Aussehen folgt dem Design „Lichtung“.
+
+## Lizenz
+
+[MIT](LICENSE) © 2026 theslasher5g

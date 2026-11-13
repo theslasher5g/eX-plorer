@@ -1,0 +1,20 @@
+name: Funktionswunsch
+description: Eine Idee oder Verbesserung vorschlagen
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem möchtest du lösen?
+      description: Beschreibe die Situation, nicht nur die Lösung.
+    validations:
+      required: true
+  - type: textarea
+    id: idee
+    attributes:
+      label: Wie stellst du dir die Lösung vor?
+  - type: textarea
+    id: alternativen
+    attributes:
+      label: Alternativen
+      description: Was nutzt du heute stattdessen (z. B. Windows-Explorer, Total Commander)?
