@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { displayName } from '../names';
+  import { displayName, leafName } from '../names';
   import { formatSize } from '../format';
   import { Lasso } from '../lasso.svelte';
   import { t } from '../i18n';
@@ -295,7 +295,7 @@
               <Thumb {entry} dir={pane.path} sync={onedrive.stateOf(entry, pane.path)} />
               {#if pane.renaming === entry.name}
                 <RenameBox
-                  name={entry.name}
+                  name={leafName(entry)}
                   isDir={entry.isDir}
                   oncommit={(value) => ops.rename(pane, entry.name, value)}
                   oncancel={() => (pane.renaming = null)}

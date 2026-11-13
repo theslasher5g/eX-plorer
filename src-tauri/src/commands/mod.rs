@@ -8,6 +8,7 @@ pub mod network;
 pub mod onedrive;
 pub mod ops;
 pub mod preview;
+pub mod search;
 pub mod settings;
 pub mod tree;
 pub mod watch;

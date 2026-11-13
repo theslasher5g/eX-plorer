@@ -9,6 +9,7 @@ import type {
   Entry,
   ListSummary,
   MenuItem,
+  SearchSummary,
   MenuOpened,
   MenuOutcome,
   NetDrive,
@@ -71,6 +72,12 @@ export const tauriApi: Api = {
     return invoke<TreeSummary>('tree_scan', { args, onChunk: channel });
   },
   treeCancel: (scanId) => invoke<void>('tree_cancel', { scanId }),
+  searchDir(args, onHits) {
+    const channel = new Channel<Entry[]>();
+    channel.onmessage = onHits;
+    return invoke<SearchSummary>('search_dir', { args, onHits: channel });
+  },
+  searchCancel: (searchId) => invoke<void>('search_cancel', { searchId }),
   settingsGet: () => invoke<Settings>('settings_get'),
   settingsSet: (settings) => invoke<Settings>('settings_set', { settings }),
   clipboardSetText: (text) => invoke<void>('clipboard_set_text', { text }),

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { displayName } from '../names';
+  import { displayName, leafName, locationOf } from '../names';
   import { ChevronDown } from '@lucide/svelte';
   import { Lasso } from '../lasso.svelte';
   import type { Entry } from '../api';
@@ -168,6 +168,7 @@
     event.preventDefault();
     const entry = items[index];
     if (entry && !pane.selected.has(entry.name)) pane.select(index);
+    else pane.cursor = index;
     void ops.contextMenu(pane);
   }
 
@@ -310,13 +311,14 @@
                 <FileIcon {entry} dir={pane.path} />
                 {#if pane.renaming === entry.name}
                   <RenameBox
-                    name={entry.name}
+                    name={leafName(entry)}
                     isDir={entry.isDir}
                     oncommit={(value) => ops.rename(pane, entry.name, value)}
                     oncancel={() => (pane.renaming = null)}
                   />
                 {:else}
                   <span class="nm" title={entry.name}>{displayName(entry)}</span>
+                  {#if locationOf(entry)}<span class="where" title={locationOf(entry)}>{locationOf(entry)}</span>{/if}
                 {/if}
               </span>
               <span class="c-meta" role="gridcell" title={formatDateLong(entry.modifiedMs)}>
@@ -481,6 +483,15 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+  }
+
+  .where {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--muted);
   }
 
   .nm,

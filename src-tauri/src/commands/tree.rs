@@ -43,9 +43,9 @@ pub struct TreeSummary {
 }
 
 /// Entfernt die Abbruchmarke eines Scans, egal wie er endet.
-struct Registration<'a> {
-    state: &'a AppState,
-    id: u32,
+pub(super) struct Registration<'a> {
+    pub(super) state: &'a AppState,
+    pub(super) id: u32,
 }
 
 impl Drop for Registration<'_> {

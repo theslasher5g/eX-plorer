@@ -69,6 +69,8 @@ fn main() {
             commands::network::network_connect,
             commands::network::network_parse,
             commands::network::network_shares,
+            commands::search::search_dir,
+            commands::search::search_cancel,
             commands::tree::tree_scan,
             commands::tree::tree_cancel,
             commands::settings::settings_get,

@@ -191,6 +191,25 @@ export interface TreeChunk {
   error: string | null;
 }
 
+export interface SearchArgs {
+  path: string;
+  query: string;
+  searchId: number;
+  showHidden: boolean;
+}
+
+export interface SearchSummary {
+  found: number;
+  visited: number;
+  cancelled: boolean;
+  /** Die Suche endete wegen einer Obergrenze. */
+  truncated: boolean;
+  /** Ordner, die nur in der Cloud liegen und nicht betreten wurden. */
+  skippedCloud: number;
+  /** Ordner, die sich nicht lesen ließen. */
+  unreadable: number;
+}
+
 export interface TreeScanArgs {
   path: string;
   scanId: number;
@@ -293,6 +312,12 @@ export interface Api {
   openItem(path: string, confirmed: boolean): Promise<OpenResult>;
   treeScan(args: TreeScanArgs, onChunk: (chunk: TreeChunk) => void): Promise<TreeSummary>;
   treeCancel(scanId: number): Promise<void>;
+  /**
+   * Sucht Namen im Ordner und allen Unterordnern. Treffer tragen den Pfad
+   * relativ zum Ordner im Feld `name` (`unter\\ordner\\datei.txt`).
+   */
+  searchDir(args: SearchArgs, onHits: (hits: Entry[]) => void): Promise<SearchSummary>;
+  searchCancel(searchId: number): Promise<void>;
   settingsGet(): Promise<Settings>;
   settingsSet(settings: Settings): Promise<Settings>;
   clipboardSetText(text: string): Promise<void>;

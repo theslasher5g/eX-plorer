@@ -56,6 +56,7 @@ export function createItemActions(getPane: () => Pane, getItems: () => Entry[]) 
       const pane = getPane();
       const entry = getItems()[index];
       if (entry && !pane.selected.has(entry.name)) pane.select(index);
+      else pane.cursor = index;
       void ops.contextMenu(pane);
     },
     backgroundContext(event: MouseEvent) {

@@ -3,6 +3,8 @@ import { dateBoundaries, groupOf, type Group, type GroupInfo, type GroupKey } fr
 import { locale } from '../i18n';
 import { extension, joinPath, NETWORK_PATH, parentPath, samePath, splitPath } from '../paths';
 import { ColumnsState } from './columns.svelte';
+import { matchesName } from '../search';
+import { SearchState } from './search.svelte';
 import { settings } from './settings.svelte';
 import { TreeState } from './tree.svelte';
 
@@ -35,6 +37,8 @@ export class Pane {
   readonly tree = new TreeState();
   /** Zustand der Spaltenansicht dieses Tabs. */
   readonly columns = new ColumnsState(this);
+  /** Suche in Unterordnern (Treffer, Lauf, Zustand). */
+  readonly search = new SearchState();
   /** Gesetzt bei Spalten der Spaltenansicht: der Pane des Tabs, zu dem sie gehören. */
   host: Pane | null = null;
 
@@ -95,8 +99,10 @@ export class Pane {
     const needle = this.filter.trim().toLowerCase();
     const showHidden = this.showHidden;
     const list = this.entries.filter(
-      (e) => (showHidden || !e.hidden) && (!needle || e.name.toLowerCase().includes(needle)),
+      (e) => (showHidden || !e.hidden) && (!needle || matchesName(e.name, needle)),
     );
+    // Treffer aus Unterordnern folgen den Treffern des Ordners selbst.
+    if (needle && !this.host) for (const hit of this.search.hits) list.push(hit);
     // Spalten sortieren wie der Tab, zu dem sie gehören.
     const sorter: Pane = this.host ?? this;
     const direction = sorter.sortAsc ? 1 : -1;

@@ -228,8 +228,13 @@ class Ops {
   /** Zeigt das native Windows-Kontextmenü für die Auswahl (oder die leere Fläche). */
   async contextMenu(pane: Pane): Promise<void> {
     if (pane.error || !pane.path || pane.isNetwork) return;
-    const paths = this.selectedPaths(pane);
-    const selected = pane.entries.filter((e) => pane.selected.has(e.name));
+    let paths = this.selectedPaths(pane);
+    // Suchtreffer können in verschiedenen Ordnern liegen; Windows erwartet einen Ordner.
+    const clicked = pane.visible[pane.cursor];
+    const anchor = clicked && pane.selected.has(clicked.name) ? joinPath(pane.path, clicked.name) : paths[0];
+    const firstParent = anchor ? parentPath(anchor) : null;
+    if (firstParent) paths = paths.filter((p) => parentPath(p) !== null && samePath(parentPath(p) ?? '', firstParent));
+    const selected = pane.visible.filter((e) => paths.some((p) => samePath(p, joinPath(pane.path, e.name))));
     const folder = selected.length === 1 && selected[0].isDir ? selected[0] : null;
     try {
       // Im OneDrive-Ordner die beiden Cloud-Aktionen anbieten, sofern OneDrive
@@ -368,7 +373,9 @@ class Ops {
   /** Gibt `true` zurück, wenn das Eingabefeld geschlossen werden darf. */
   async rename(pane: Pane, oldName: string, newName: string): Promise<boolean> {
     const name = newName.trim();
-    if (!name || name === oldName) {
+    // Suchtreffer tragen ihren Unterordner im Namen; verglichen wird der Dateiname.
+    const leaf = oldName.slice(oldName.lastIndexOf('\\') + 1);
+    if (!name || name === leaf) {
       pane.renaming = null;
       return true;
     }

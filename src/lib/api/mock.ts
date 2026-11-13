@@ -1,3 +1,4 @@
+import { matchesName } from '../search';
 // Demo-Backend für die Entwicklung im Browser. Wird nur im Dev-Modus geladen
 // und greift auf kein echtes Dateisystem zu.
 import type {
@@ -718,6 +719,33 @@ export const mockApi: Api = {
     const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
     if (RISKY.includes(ext) && !confirmed) return { needsConfirm: true };
     return { needsConfirm: false };
+  },
+  async searchDir(args, onHits) {
+    const root = norm(args.path);
+    if (root.startsWith('\\\\')) fail('unsupported');
+    if (!sortedChildren(root, true)) fail('not_found');
+    const needle = args.query.trim().toLowerCase();
+    const queue: { dir: string; rel: string }[] = [{ dir: root, rel: '' }];
+    let found = 0;
+    let visited = 0;
+    while (queue.length) {
+      const item = queue.shift()!;
+      await sleep(8);
+      if (cancelled.delete(args.searchId)) return { found, visited, cancelled: true, truncated: false, skippedCloud: 0, unreadable: 0 };
+      const hits: Entry[] = [];
+      for (const entry of sortedChildren(item.dir, args.showHidden) ?? []) {
+        visited++;
+        const relative = item.rel ? `${item.rel}\\${entry.name}` : entry.name;
+        if (needle && matchesName(entry.name, needle)) hits.push({ ...entry, name: relative });
+        if (entry.isDir && !entry.isLink) queue.push({ dir: join(item.dir, entry.name), rel: relative });
+      }
+      found += hits.length;
+      if (hits.length) onHits(hits);
+    }
+    return { found, visited, cancelled: false, truncated: false, skippedCloud: 0, unreadable: 0 };
+  },
+  searchCancel: async (searchId) => {
+    cancelled.add(searchId);
   },
   async treeScan(args, onChunk) {
     const root = norm(args.path);

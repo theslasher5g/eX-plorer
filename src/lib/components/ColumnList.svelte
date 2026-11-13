@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { displayName } from '../names';
+  import { displayName, leafName } from '../names';
   import { ChevronRight } from '@lucide/svelte';
   import { errorText, t } from '../i18n';
   import { joinPath } from '../paths';
@@ -144,7 +144,7 @@
               <FileIcon {entry} dir={pane.path} />
               {#if pane.renaming === entry.name}
                 <RenameBox
-                  name={entry.name}
+                  name={leafName(entry)}
                   isDir={entry.isDir}
                   oncommit={(value) => ops.rename(pane, entry.name, value)}
                   oncancel={() => (pane.renaming = null)}

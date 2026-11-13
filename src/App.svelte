@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { getApi, type SidebarData } from './lib/api';
   import { samePath } from './lib/paths';
   import { contextmenu } from './lib/stores/contextmenu.svelte';
@@ -77,6 +77,21 @@ import { dialogs } from './lib/stores/dialog.svelte';
   $effect(() => {
     const paths = [...new Set(tabs.livePanes.map((p) => p.path).filter(Boolean))];
     void getApi().then((api) => api.watchDirs(paths)).catch(() => {});
+  });
+
+  // Suche in Unterordnern: ab dem ersten Zeichen, nach kurzer Pause, im aktiven Tab.
+  $effect(() => {
+    const target = pane;
+    const query = target.filter.trim();
+    const path = target.path;
+    const hidden = target.showHidden;
+    const searchable = target.view !== 'tree' && !target.isNetwork && !target.error && !!path;
+    if (!query || !searchable) {
+      untrack(() => target.search.clear());
+      return;
+    }
+    const timer = setTimeout(() => untrack(() => void target.search.run(path, query, hidden)), 300);
+    return () => clearTimeout(timer);
   });
 
   function newTab() {

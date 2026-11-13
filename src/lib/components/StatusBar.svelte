@@ -13,6 +13,7 @@
     if (pane.isNetwork) return '';
     if (pane.error?.code === 'access_denied') return t('status.denied');
     if (pane.view === 'tree') return t('tree.rows', { count: formatCount(pane.tree.rows.length) });
+    if (pane.search.running) return t('search.running', { count: formatCount(pane.search.hits.length) });
     const count = target.visible.length;
     const cols = pane.view === 'columns';
     const parts = [
@@ -23,6 +24,14 @@
     if (target.selected.size > 0) {
       parts.push(t('status.selected', { count: formatCount(target.selected.size) }));
       if (target.selectedBytes > 0) parts.push(formatSize(target.selectedBytes));
+    }
+    const search = pane.search;
+    if (search.unsupported) parts.push(t('search.networkOnly'));
+    else if (search.failed) parts.push(t('search.failed'));
+    else if (search.summary) {
+      parts.push(t('search.found', { count: formatCount(search.hits.length) }));
+      if (search.summary.truncated) parts.push(t('search.truncated'));
+      if (search.summary.skippedCloud > 0) parts.push(t('search.cloud', { count: formatCount(search.summary.skippedCloud) }));
     }
     return parts.join(', ');
   });
