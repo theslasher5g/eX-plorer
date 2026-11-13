@@ -1,6 +1,7 @@
 <script lang="ts">
   import { displayName, leafName, locationOf } from '../names';
   import { ChevronDown } from '@lucide/svelte';
+  import { onDestroy } from 'svelte';
   import { Lasso } from '../lasso.svelte';
   import { handleTypeAhead } from '../typeahead';
   import type { Entry } from '../api';
@@ -117,6 +118,12 @@
       viewport.scrollTop = top + ROW - visible + extra;
     }
   }
+
+  // Beim Verschwinden der Ansicht (Ansichtswechsel mitten im Klicken/Ziehen) alles aufräumen.
+  onDestroy(() => {
+    endPress();
+    lasso.destroy();
+  });
 
   // Ein Zug mit gedrückter Maustaste über der Schwelle startet einen echten
   // Drag (OLE) in andere Programme oder auf Ordner, Tabs und Seitenleiste.

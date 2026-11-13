@@ -1,5 +1,6 @@
 <script lang="ts">
   import { displayName, leafName } from '../names';
+  import { onDestroy } from 'svelte';
   import { formatSize } from '../format';
   import { Lasso } from '../lasso.svelte';
   import { handleTypeAhead } from '../typeahead';
@@ -131,6 +132,11 @@
       }
       return out;
     },
+  });
+
+  onDestroy(() => {
+    actions.destroy();
+    lasso.destroy();
   });
 
   $effect(() => {

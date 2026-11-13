@@ -2,6 +2,22 @@ import { joinPath, samePath } from '../paths';
 import { Pane } from './pane.svelte';
 
 /**
+ * Erzeugt einen Pane außerhalb des gerade laufenden Effekts. Abgeleitete Werte
+ * gehören sonst dem Effekt, in dem sie entstehen (hier: dem der Ansicht), und
+ * würden beim Wechsel der Ansicht mit zerstört; die Spalte läse dann veraltete
+ * Werte und Svelte warnt mit `derived_inert`.
+ */
+function createDetachedPane(host: Pane): Pane {
+  let pane: Pane | undefined;
+  $effect.root(() => {
+    pane = new Pane();
+  });
+  if (!pane) throw new Error('Pane konnte nicht erzeugt werden');
+  pane.host = host;
+  return pane;
+}
+
+/**
  * Zustand der Spaltenansicht (wie im Finder). Die erste Spalte ist der Pane
  * des Tabs selbst; jede weitere zeigt den in der Spalte davor markierten
  * Ordner. Jede Spalte ist ein eigener `Pane`, damit Auswahl, Kopieren,
@@ -73,8 +89,7 @@ export class ColumnsState {
       if (existing && samePath(existing.path, path)) {
         next.push(existing);
       } else {
-        const column = new Pane();
-        column.host = this.#root;
+        const column = createDetachedPane(this.#root);
         void column.navigate(path);
         next.push(column);
       }

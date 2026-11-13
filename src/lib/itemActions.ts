@@ -35,6 +35,8 @@ export function createItemActions(getPane: () => Pane, getItems: () => Entry[]) 
   }
 
   return {
+    /** Beendet eine laufende Maus-Geste, wenn die Ansicht verschwindet. */
+    destroy: endPress,
     pointerDown(event: PointerEvent, index: number) {
       if (event.button !== 0 || getPane().renaming) return;
       endPress();

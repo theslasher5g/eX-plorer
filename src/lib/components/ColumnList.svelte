@@ -1,6 +1,7 @@
 <script lang="ts">
   import { displayName, leafName } from '../names';
   import { ChevronRight } from '@lucide/svelte';
+  import { onDestroy } from 'svelte';
   import { errorText, t } from '../i18n';
   import { joinPath } from '../paths';
   import { createItemActions } from '../itemActions';
@@ -55,6 +56,11 @@
       for (let i = first; i <= last; i++) out.push(i);
       return out;
     },
+  });
+
+  onDestroy(() => {
+    actions.destroy();
+    lasso.destroy();
   });
 
   $effect(() => {

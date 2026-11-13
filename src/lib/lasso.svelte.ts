@@ -58,6 +58,11 @@ export class Lasso {
     };
   }
 
+  /** Räumt auf, wenn die Ansicht verschwindet (z. B. beim Wechsel mitten im Ziehen). */
+  destroy(): void {
+    this.#end();
+  }
+
   pointerDown = (event: PointerEvent): void => {
     const el = this.#host.container();
     if (!el || event.button !== 0 || this.#active) return;
