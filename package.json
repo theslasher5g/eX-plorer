@@ -22,7 +22,7 @@
     "@tauri-apps/cli": "^2.0.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
-    "typescript": "^5.6.0",
+    "typescript": "^7.0.2",
     "vite": "^7.0.0"
   },
   "description": "A modern file explorer for Windows 10/11, inspired by the macOS Finder (Rust, Tauri 2, Svelte 5)",
