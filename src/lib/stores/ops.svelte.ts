@@ -8,7 +8,7 @@ import {
   type TransferMode,
 } from '../api';
 import { errorText, itemsText, t } from '../i18n';
-import { joinPath, parentPath, samePath } from '../paths';
+import { joinPath, parentPath, samePath, splitPath } from '../paths';
 import { dialogs } from './dialog.svelte';
 import { onedrive } from './onedrive.svelte';
 import type { Pane } from './pane.svelte';
@@ -79,9 +79,31 @@ class Ops {
     }
   }
 
+  /**
+   * Verbindet mit einer Freigabe (`\\server\freigabe`) oder verbindet ein
+   * zugeordnetes Laufwerk (`Z:\\`) neu. Den Dialog für Anmeldedaten zeigt
+   * Windows; die App sieht nie ein Kennwort. `true`: verbunden.
+   */
+  async connect(target: string): Promise<boolean> {
+    try {
+      const result = await (await getApi()).networkConnect(target);
+      if (result.connected) toasts.show(t('network.joined', { name: target.replace(/\\IPC\$$/, '').replace(/\\$/, '') }));
+      return result.connected;
+    } catch (err) {
+      this.#fail(err);
+      return false;
+    }
+  }
+
+  /** Meldet sich an der Freigabe des aktuellen Ordners an und lädt neu. */
+  async reconnect(pane: Pane): Promise<void> {
+    const root = splitPath(pane.path)[0]?.path;
+    if (root && (await this.connect(root))) void pane.refresh();
+  }
+
   async copy(cut = false): Promise<void> {
     const pane = this.pane;
-    if (!pane) return;
+    if (!pane || pane.isNetwork) return;
     const paths = this.selectedPaths(pane);
     if (paths.length === 0) return;
     try {
@@ -95,7 +117,7 @@ class Ops {
 
   async paste(): Promise<void> {
     const pane = this.pane;
-    if (!pane || pane.error || !pane.path) return;
+    if (!pane || pane.error || !pane.path || pane.isNetwork) return;
     try {
       const result = await (await getApi()).paste(pane.path);
       if (result.cut) this.clipboard = null;
@@ -201,7 +223,7 @@ class Ops {
 
   /** Zeigt das native Windows-Kontextmenü für die Auswahl (oder die leere Fläche). */
   async contextMenu(pane: Pane): Promise<void> {
-    if (pane.error || !pane.path) return;
+    if (pane.error || !pane.path || pane.isNetwork) return;
     const paths = this.selectedPaths(pane);
     const selected = pane.entries.filter((e) => pane.selected.has(e.name));
     const folder = selected.length === 1 && selected[0].isDir ? selected[0] : null;
@@ -293,7 +315,7 @@ class Ops {
 
   async newFolder(): Promise<void> {
     const pane = this.pane;
-    if (!pane || pane.error || !pane.path) return;
+    if (!pane || pane.error || !pane.path || pane.isNetwork) return;
     try {
       const name = await (await getApi()).newFolder(pane.path, t('ops.newFolderName'));
       pane.selectAfterLoad([name]);

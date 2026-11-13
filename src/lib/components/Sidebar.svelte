@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { Component } from 'svelte';
-  import { Cloud, Disc, Download, FileText, HardDrive, Image, Monitor, Network, SlidersHorizontal, Usb } from '@lucide/svelte';
+  import { Cloud, Disc, Download, FileText, Globe, HardDrive, Image, Monitor, Network, SlidersHorizontal, Usb } from '@lucide/svelte';
   import type { Drive, DriveKind, PlaceKind, SidebarData } from '../api';
   import { formatSize } from '../format';
   import { t } from '../i18n';
-  import { samePath } from '../paths';
+  import { NETWORK_PATH, samePath } from '../paths';
   import { dnd } from '../stores/dnd.svelte';
   import { settings } from '../stores/settings.svelte';
 
@@ -50,7 +50,7 @@
     class="nav"
     class:on={samePath(path, current)}
     class:drop={dnd.isHover(path)}
-    data-drop={path}
+    data-drop={path === NETWORK_PATH ? undefined : path}
     {title}
     onclick={() => onnavigate(path)}
   >
@@ -87,6 +87,8 @@
       {/each}
     {/if}
   {/if}
+  <div class="gtitle">{t('sidebar.network')}</div>
+  {@render item(Globe, t('place.network'), NETWORK_PATH, t('place.networkTitle'))}
   <div class="gap"></div>
   <button class="nav" title={t('settings.open')} onclick={() => settings.open()}>
     <SlidersHorizontal size={18} strokeWidth={1.7} />

@@ -11,6 +11,7 @@
   import { Tabs } from './lib/stores/tabs.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
   import FileList from './lib/components/FileList.svelte';
+  import NetworkPage from './lib/components/NetworkPage.svelte';
   import QuickLook from './lib/components/QuickLook.svelte';
   import SettingsDialog from './lib/components/SettingsDialog.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
@@ -134,7 +135,9 @@
     <section class="right">
       <Toolbar bind:this={toolbar} {pane} />
       {#key pane.id}
-        {#if pane.view === 'tree'}
+        {#if pane.isNetwork}
+          <NetworkPage {pane} />
+        {:else if pane.view === 'tree'}
           <TreeView {pane} />
         {:else if pane.view === 'grid'}
           <TileGrid {pane} />

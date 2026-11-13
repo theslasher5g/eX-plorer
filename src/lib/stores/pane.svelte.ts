@@ -1,6 +1,6 @@
 import { getApi, toApiError, type ApiError, type Entry } from '../api';
 import { locale } from '../i18n';
-import { extension, joinPath, parentPath, samePath, splitPath } from '../paths';
+import { extension, joinPath, NETWORK_PATH, parentPath, samePath, splitPath } from '../paths';
 import { settings } from './settings.svelte';
 import { TreeState } from './tree.svelte';
 
@@ -53,6 +53,9 @@ export class Pane {
   #generation = 0;
   #pendingSelect: string[] | null = null;
 
+  /** Zeigt die Netzwerk-Seite statt eines Ordners. */
+  readonly isNetwork = $derived(this.path === NETWORK_PATH);
+
   readonly canBack = $derived(this.#index > 0);
   readonly canForward = $derived(this.#index < this.#history.length - 1);
   readonly canUp = $derived(parentPath(this.path) !== null);
@@ -99,6 +102,7 @@ export class Pane {
     const target = path.trim();
     if (!target) return Promise.resolve();
     if (this.path && samePath(target, this.path) && !this.error) return this.refresh();
+    if (target === NETWORK_PATH && this.path === NETWORK_PATH) return this.refresh();
     const history = this.#history.slice(0, this.#index + 1);
     history.push(target);
     this.#history = history;
@@ -124,6 +128,11 @@ export class Pane {
   }
 
   refresh(): Promise<void> {
+    if (this.path === NETWORK_PATH) {
+      // Die Netzwerk-Seite prüft bei jedem Wechsel dieses Zählers neu.
+      this.revision++;
+      return Promise.resolve();
+    }
     return this.path ? this.#load(this.path, true) : Promise.resolve();
   }
 
@@ -134,9 +143,17 @@ export class Pane {
 
   async #load(target: string, keepSelection = false): Promise<void> {
     const generation = ++this.#generation;
-    this.loading = true;
     this.error = null;
     this.path = target;
+    if (target === NETWORK_PATH) {
+      this.entries = [];
+      this.loading = false;
+      this.renaming = null;
+      this.#resetSelection();
+      this.revision++;
+      return;
+    }
+    this.loading = true;
     if (!keepSelection) this.renaming = null;
 
     const collected: Entry[] = [];

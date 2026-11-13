@@ -24,6 +24,8 @@ pub struct AppState {
     pub watcher: Mutex<DirWatcher>,
     /// Abbruchmarken laufender Baum-Scans, nach Scan-Kennung.
     pub scans: Mutex<HashMap<u32, Arc<AtomicBool>>>,
+    /// Zeitlimits und Abkühlzeit für Netzwerkzugriffe.
+    pub net: explorer_core::timeout::Guard,
 }
 
 /// Aktiviert Mica, wenn das System es unterstützt. Das Fenster ist transparent

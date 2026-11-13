@@ -34,6 +34,7 @@ fn main() {
                 material,
                 watcher: Mutex::new(watcher),
                 scans: Mutex::default(),
+                net: explorer_core::timeout::Guard::new(),
             });
             Ok(())
         })
@@ -56,6 +57,11 @@ fn main() {
             commands::menu::context_menu,
             commands::menu::open_item,
             commands::onedrive::onedrive_set_pinned,
+            commands::network::network_drives,
+            commands::network::network_probe,
+            commands::network::network_connect,
+            commands::network::network_parse,
+            commands::network::network_shares,
             commands::tree::tree_scan,
             commands::tree::tree_cancel,
             commands::settings::settings_get,

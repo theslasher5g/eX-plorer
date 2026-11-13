@@ -7,6 +7,7 @@
   let { pane }: { pane: Pane } = $props();
 
   const text = $derived.by(() => {
+    if (pane.isNetwork) return '';
     if (pane.error?.code === 'access_denied') return t('status.denied');
     if (pane.view === 'tree') return t('tree.rows', { count: formatCount(pane.tree.rows.length) });
     const count = pane.visible.length;

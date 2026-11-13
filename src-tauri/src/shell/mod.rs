@@ -10,6 +10,7 @@ pub mod images;
 pub mod items;
 pub mod keys;
 pub mod launch;
+pub mod network;
 pub mod onedrive;
 pub mod places;
 pub mod registry;

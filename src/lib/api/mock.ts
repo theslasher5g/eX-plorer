@@ -7,7 +7,11 @@ import type {
   Entry,
   MenuOutcome,
   PreviewInfo,
+  NetDrive,
+  Reachability,
+  ServerRef,
   Settings,
+  ShareInfo,
   TreeEntry,
 } from './types';
 
@@ -107,6 +111,12 @@ const tree: Record<string, Entry[]> = {
     f('Plan.pdf', 200, 5, { sync: 'cloud', attributes: 0x400000 }),
   ],
   'D:\\': [d('Backups', 7), d('Medien', 30)],
+  'Z:\\': [d('Backups', 3), d('Medien', 9), f('liesmich.txt', 2, 40)],
+  'Z:\\Backups': [f('2026-11-01.zip', 900_000, 11)],
+  'W:\\': [d('Rechnungen 2026', 2), f('Bilanz.xlsx', 4_000, 5)],
+  '\\\\nas\\medien': [d('Filme', 4), d('Musik', 8), f('Liste.txt', 1, 60)],
+  '\\\\nas\\medien\\Filme': [f('Urlaub.mp4', 800_000, 20)],
+  '\\\\buchhaltung\\daten': [d('Belege', 1)],
   'E:\\': [f('Foto.jpg', 2_048_000, 4), d('USB-Ordner', 9)],
   'E:\\USB-Ordner': [],
   'C:\\Test': [d('100k', 1), d('Leer', 1), d('Tief', 1), d('Viele', 1)],
@@ -315,7 +325,42 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 // --- Baum-Scan und Einstellungen (Demo) ------------------------------------
 
 const cancelled = new Set<number>();
-let settings: Settings = { showHidden: false, treeDepth: 4, treeTotal: 2000, treePerDir: 200, tileSize: 132 };
+let settings: Settings = {
+  showHidden: false,
+  treeDepth: 4,
+  treeTotal: 2000,
+  treePerDir: 200,
+  tileSize: 132,
+  servers: ['\\\\nas', '\\\\buchhaltung', '\\\\srv-alt'],
+};
+
+// --- Netzwerk (Demo) -------------------------------------------------------
+
+type NetState = 'online' | 'offline' | 'auth' | 'timeout';
+/** Zustand je Wurzel (kleingeschrieben). Das Demo-Backend kennt nur diese Ziele. */
+const netState: Record<string, NetState> = {
+  'z:\\': 'online',
+  'w:\\': 'auth',
+  'y:\\': 'offline',
+  'x:\\': 'timeout',
+  '\\\\nas\\backup': 'online',
+  '\\\\nas\\medien': 'online',
+  '\\\\nas\\fotos': 'online',
+  '\\\\buchhaltung\\daten': 'auth',
+  '\\\\srv-alt\\archiv': 'offline',
+};
+const netDelay: Record<string, number> = { 'z:\\': 80, 'w:\\': 160, 'y:\\': 120, 'x:\\': 900 };
+const rootOf = (p: string) => (p.startsWith('\\\\') ? p.split('\\').slice(0, 4).join('\\') : p.slice(0, 3));
+const netCalls = { connect: [] as string[], probe: [] as string[], shares: [] as string[] };
+let connectCancel = false;
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  Object.assign(window, {
+    __mockNet: netCalls,
+    __mockNetState: netState,
+    __mockConnectCancel: (v: boolean) => (connectCancel = v),
+  });
+}
 let clipboardText = '';
 
 function sortedChildren(dir: string, showHidden: boolean): Entry[] | undefined {
@@ -369,8 +414,15 @@ export const mockApi: Api = {
     const normalized = norm(path);
     await sleep(40);
     if (lower(normalized) === 'c:\\windows') throw { code: 'access_denied', message: 'access denied' };
+    const state = netState[rootOf(lower(normalized))];
+    if (state && state !== 'online') {
+      if (state === 'timeout') await sleep(700);
+      throw { code: state === 'auth' ? 'auth_required' : state, message: state };
+    }
     const k = key(normalized);
     const entries = lower(normalized) === 'c:\\test\\100k' ? hugeFolder() : k ? tree[k] : undefined;
+    // Unbekannte Server antworten wie ein toter Server.
+    if (!entries && normalized.startsWith('\\\\')) throw { code: 'offline', message: 'offline' };
     if (!entries) throw { code: 'not_found', message: 'not found' };
     const copy = entries.map((e) => ({ ...e }));
     for (let i = 0; i < copy.length; i += 2000) onBatch(copy.slice(i, i + 2000));
@@ -463,6 +515,67 @@ export const mockApi: Api = {
   async onDragDrop(handler) {
     dropHandlers.add(handler);
     return () => dropHandlers.delete(handler);
+  },
+  async networkDrives() {
+    const drives: NetDrive[] = [
+      { letter: 'Z', path: 'Z:\\', remote: '\\\\nas\\backup' },
+      { letter: 'W', path: 'W:\\', remote: '\\\\buchhaltung\\daten' },
+      { letter: 'Y', path: 'Y:\\', remote: '\\\\srv-alt\\archiv' },
+      { letter: 'X', path: 'X:\\', remote: null },
+    ];
+    return drives;
+  },
+  async networkProbe(path) {
+    netCalls.probe.push(path);
+    const root = lower(rootOf(path));
+    await sleep(netDelay[root] ?? 100);
+    const state = netState[root] ?? 'offline';
+    const result: Reachability = state === 'online' ? 'online' : state === 'auth' ? 'authrequired' : 'offline';
+    return result;
+  },
+  async networkConnect(target) {
+    netCalls.connect.push(target);
+    await sleep(120);
+    if (connectCancel) return { connected: false };
+    const root = lower(rootOf(target));
+    const host = root.startsWith('\\\\') ? root.split('\\')[2] : null;
+    // Ein Anmelden am Server (auch über IPC$) schaltet dessen Freigaben frei.
+    for (const key of Object.keys(netState)) {
+      if (key === root || (host && key.startsWith(`\\\\${host}\\`))) {
+        if (netState[key] === 'auth') netState[key] = 'online';
+      }
+    }
+    if (netState[root] === 'offline' || netState[root] === 'timeout') fail('offline');
+    if (root === 'w:\\' && netState['\\\\buchhaltung\\daten'] === 'auth') netState['\\\\buchhaltung\\daten'] = 'online';
+    if (root === '\\\\buchhaltung\\daten') netState['w:\\'] = 'online';
+    return { connected: true };
+  },
+  async networkParse(input) {
+    const match = /^[\\/]{0,2}([A-Za-z0-9_.-]+)(?:[\\/]([^\\/:*?"<>|\s]+))?[\\/]?$/.exec(input.trim());
+    if (!match || match[1].startsWith('-') || match[1].endsWith('-') || match[1].startsWith('.')) fail('invalid_path');
+    const ref: ServerRef = {
+      server: `\\\\${match[1]}`,
+      share: match[2] ? `\\\\${match[1]}\\${match[2]}` : null,
+    };
+    return ref;
+  },
+  async networkShares(server) {
+    netCalls.shares.push(server);
+    const host = server.replace(/^\\+/, '').toLowerCase();
+    await sleep(host === 'srv-alt' ? 900 : 150);
+    if (host === 'buchhaltung') {
+      if (netState['\\\\buchhaltung\\daten'] === 'auth') fail('auth_required');
+      return [{ name: 'daten', comment: 'Buchhaltung', path: '\\\\buchhaltung\\daten' }];
+    }
+    if (host === 'nas') {
+      const shares: ShareInfo[] = [
+        { name: 'backup', comment: 'Sicherungen', path: '\\\\nas\\backup' },
+        { name: 'fotos', comment: '', path: '\\\\nas\\fotos' },
+        { name: 'medien', comment: 'Filme und Musik', path: '\\\\nas\\medien' },
+      ];
+      return shares;
+    }
+    return fail('offline');
   },
   async previewInfo(path) {
     const entry = findByPath(path);

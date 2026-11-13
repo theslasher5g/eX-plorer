@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { CircleAlert, Folder, Lock, Search } from '@lucide/svelte';
+  import { CircleAlert, Folder, Lock, Search, WifiOff } from '@lucide/svelte';
   import { errorText, t } from '../i18n';
+  import { ops } from '../stores/ops.svelte';
   import type { Pane } from '../stores/pane.svelte';
 
   // Leer-, Lade-, Fehler- und Kein-Treffer-Zustand einer Ordneransicht.
@@ -9,7 +10,13 @@
   const filter = $derived(pane.filter.trim());
   const errorTitle = $derived.by(() => {
     const code = pane.error?.code;
-    if (code === 'access_denied' || code === 'not_found') {
+    if (
+      code === 'access_denied' ||
+      code === 'not_found' ||
+      code === 'offline' ||
+      code === 'timeout' ||
+      code === 'auth_required'
+    ) {
       return t(`error.title.${code}`, { name: pane.title || pane.path });
     }
     return t('error.title');
@@ -19,8 +26,10 @@
 <div class="center">
   {#if pane.error}
     <div class="bigic err">
-      {#if pane.error.code === 'access_denied'}
+      {#if pane.error.code === 'access_denied' || pane.error.code === 'auth_required'}
         <Lock size={38} strokeWidth={1.5} />
+      {:else if pane.error.code === 'offline' || pane.error.code === 'timeout'}
+        <WifiOff size={38} strokeWidth={1.5} />
       {:else}
         <CircleAlert size={38} strokeWidth={1.5} />
       {/if}
@@ -31,7 +40,11 @@
       {#if pane.canBack}
         <button class="btn" onclick={() => pane.back()}>{t('error.back')}</button>
       {/if}
-      <button class="btn pri" onclick={() => pane.refresh()}>{t('error.retry')}</button>
+      {#if pane.error.code === 'auth_required'}
+        <button class="btn pri" onclick={() => ops.reconnect(pane)}>{t('error.login')}</button>
+      {:else}
+        <button class="btn pri" onclick={() => pane.refresh()}>{t('error.retry')}</button>
+      {/if}
     </div>
   {:else if pane.loading}
     <p>{t('list.loading')}</p>

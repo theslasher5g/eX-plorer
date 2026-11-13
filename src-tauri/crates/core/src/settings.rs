@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::network::parse_server;
 use crate::tree::Limits;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -15,7 +16,12 @@ pub struct Settings {
     pub tree_per_dir: usize,
     /// Kachelbreite in Pixeln.
     pub tile_size: u32,
+    /// Vom Benutzer hinzugefügte Server (`\\server`) für die Freigaben-Liste.
+    pub servers: Vec<String>,
 }
+
+/// Mehr hinzugefügte Server sind unrealistisch.
+pub const MAX_SERVERS: usize = 20;
 
 pub const TILE_MIN: u32 = 100;
 pub const TILE_MAX: u32 = 220;
@@ -28,6 +34,7 @@ impl Default for Settings {
             tree_total: Limits::DEFAULT.max_total,
             tree_per_dir: Limits::DEFAULT.max_per_dir,
             tile_size: 132,
+            servers: Vec::new(),
         }
     }
 }
@@ -40,6 +47,19 @@ impl Settings {
         self.tree_total = limits.max_total.max(100);
         self.tree_per_dir = limits.max_per_dir.max(10);
         self.tile_size = self.tile_size.clamp(TILE_MIN, TILE_MAX);
+        // Nur gültige Server, normalisiert, ohne Doppelte (Groß-/Kleinschreibung egal).
+        let mut servers: Vec<String> = Vec::new();
+        for raw in &self.servers {
+            let Ok(server) = parse_server(raw) else {
+                continue;
+            };
+            let path = server.server_path();
+            if servers.iter().all(|s| !s.eq_ignore_ascii_case(&path)) {
+                servers.push(path);
+            }
+        }
+        servers.truncate(MAX_SERVERS);
+        self.servers = servers;
         self
     }
 
@@ -66,6 +86,30 @@ mod tests {
     }
 
     #[test]
+    fn sanitizes_server_list() {
+        let s = Settings {
+            servers: vec![
+                "nas".into(),
+                r"\\NAS".into(),
+                r"\\srv\share".into(),
+                r"\\.\pipe\x".into(),
+                "".into(),
+                "bad name".into(),
+                "//10.0.0.5".into(),
+            ],
+            ..Settings::default()
+        }
+        .sanitized();
+        assert_eq!(s.servers, [r"\\nas", r"\\srv", r"\\10.0.0.5"]);
+        let many = Settings {
+            servers: (0..50).map(|i| format!("srv{i}")).collect(),
+            ..Settings::default()
+        }
+        .sanitized();
+        assert_eq!(many.servers.len(), MAX_SERVERS);
+    }
+
+    #[test]
     fn clamps_out_of_range_values() {
         let s = Settings {
             show_hidden: true,
@@ -73,6 +117,7 @@ mod tests {
             tree_total: 0,
             tree_per_dir: 9_999_999,
             tile_size: 5,
+            servers: Vec::new(),
         }
         .sanitized();
         assert_eq!(s.tree_depth, Limits::MAX_DEPTH);

@@ -90,6 +90,11 @@ impl ValidPath {
         })
     }
 
+    /// Die Wurzel: `C:\` bzw. `\\server\freigabe`.
+    pub fn root(&self) -> &str {
+        &self.normalized[..self.root_len]
+    }
+
     /// Ist `self` gleich `ancestor` oder liegt darunter? Ohne Beachtung der
     /// Groß-/Kleinschreibung, wie unter Windows üblich.
     pub fn is_inside_or_same(&self, ancestor: &ValidPath) -> bool {

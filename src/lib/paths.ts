@@ -1,6 +1,11 @@
 // Reine Anzeige-Hilfen für Windows-Pfade. Die verbindliche Prüfung und
 // Normalisierung findet immer im Backend statt.
 
+import { t } from './i18n';
+
+/** Pseudo-Pfad der Netzwerk-Seite (Netzlaufwerke und Freigaben). */
+export const NETWORK_PATH = 'network:';
+
 export interface Crumb {
   label: string;
   path: string;
@@ -8,6 +13,7 @@ export interface Crumb {
 
 /** Zerlegt `C:\a\b` bzw. `\\server\share\a` in klickbare Teilpfade. */
 export function splitPath(path: string): Crumb[] {
+  if (path === NETWORK_PATH) return [{ label: t('sidebar.network'), path }];
   const unified = path.replace(/\//g, '\\');
   let rootLabel: string;
   let rootPath: string;

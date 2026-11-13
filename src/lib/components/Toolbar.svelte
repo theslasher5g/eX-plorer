@@ -49,7 +49,7 @@
 
   <Breadcrumb bind:this={breadcrumb} path={pane.path} onnavigate={(path) => pane.navigate(path)} />
 
-  <div class="seg" role="group" aria-label={t('view.label')}>
+  <div class="seg" role="group" aria-label={t('view.label')} style:display={pane.isNetwork ? 'none' : undefined}>
     {#each views as view (view.id)}
       {@const Icon = view.icon}
       <button
@@ -68,13 +68,15 @@
     class="icon-btn"
     title={t('ops.newFolder')}
     aria-label={t('ops.newFolder')}
-    disabled={!!pane.error || !pane.path}
+    disabled={!!pane.error || !pane.path || pane.isNetwork}
     onclick={() => ops.newFolder()}
   >
     <FolderPlus size={18} strokeWidth={1.7} />
   </button>
 
-  <SortMenu {pane} />
+  {#if !pane.isNetwork}
+    <SortMenu {pane} />
+  {/if}
 
   <label class="search" title={t('nav.filterTitle')}>
     <Search size={16} strokeWidth={1.7} />
@@ -84,7 +86,7 @@
       type="text"
       placeholder={t('nav.filter')}
       aria-label={t('nav.filter')}
-      disabled={pane.view === 'tree'}
+      disabled={pane.view === 'tree' || pane.isNetwork}
       spellcheck="false"
       autocomplete="off"
       onkeydown={onFilterKeydown}

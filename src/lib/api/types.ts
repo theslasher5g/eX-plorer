@@ -129,6 +129,8 @@ export interface Settings {
   treePerDir: number;
   /** Kachelbreite in Pixeln. */
   tileSize: number;
+  /** Vom Benutzer hinzugefügte Server (`\\server`). */
+  servers: string[];
 }
 
 export interface TreeEntry {
@@ -167,6 +169,31 @@ export interface TreeSummary {
   truncated: boolean;
   /** Netzwerkpfad: Es wurde bewusst nur eine Ebene gelesen. */
   remoteLimited: boolean;
+}
+
+export type Reachability = 'online' | 'offline' | 'authrequired';
+
+export interface NetDrive {
+  /** Laufwerksbuchstabe, z. B. `Z`. */
+  letter: string;
+  /** Wurzelpfad, z. B. `Z:\\`. */
+  path: string;
+  /** `\\server\\freigabe`, wenn bekannt. */
+  remote: string | null;
+}
+
+export interface ShareInfo {
+  name: string;
+  comment: string;
+  /** `\\server\\freigabe` */
+  path: string;
+}
+
+export interface ServerRef {
+  /** `\\server` */
+  server: string;
+  /** `\\server\\freigabe`, wenn angegeben. */
+  share: string | null;
 }
 
 export interface ApiError {
@@ -218,6 +245,13 @@ export interface Api {
   settingsGet(): Promise<Settings>;
   settingsSet(settings: Settings): Promise<Settings>;
   clipboardSetText(text: string): Promise<void>;
+  networkDrives(): Promise<NetDrive[]>;
+  /** Erreichbarkeit einer Wurzel; Zeitüberschreitung zählt als `offline`. */
+  networkProbe(path: string): Promise<Reachability>;
+  /** Verbindet über den Windows-Anmeldedialog; `false` = abgebrochen. */
+  networkConnect(target: string): Promise<{ connected: boolean }>;
+  networkParse(input: string): Promise<ServerRef>;
+  networkShares(server: string): Promise<ShareInfo[]>;
   window: WindowControls;
 }
 
