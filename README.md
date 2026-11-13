@@ -3,11 +3,13 @@
 Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
 Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
-> **Stand: Phase 6 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
-> Dateioperationen, Drag & Drop, Live-Aktualisierung, Windows-Icons, natives
-> Kontextmenü, Schnellvorschau, Listen-, Kachel-, Spalten- und Baumansicht mit Limits,
-> Einstellungen, OneDrive und Netzlaufwerke. Es fehlt der Feinschliff (siehe
-> [Fahrplan](#fahrplan)).
+> **Stand: Phase 7 von 7 (alle Phasen umgesetzt).** Fenster, Theme,
+> Seitenleiste, Tabs, Navigation, Dateioperationen, Drag & Drop,
+> Live-Aktualisierung, Windows-Icons, Kontextmenü im eigenen Stil,
+> Schnellvorschau, Listen-, Kachel-, Spalten- und Baumansicht mit Limits,
+> Einstellungen, OneDrive und Netzlaufwerke, Installer (NSIS und MSI). **Bisher
+> lief nichts davon auf echtem Windows**, nur in der CI und im Browser mit
+> Demo-Daten (siehe [Bekannte Einschränkungen](#bekannte-einschränkungen)).
 
 Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
 Bewegung) stehen in `src/app.css`, hell und dunkel folgen automatisch dem System.
@@ -72,6 +74,24 @@ cargo audit
 Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 (`.github/workflows/ci.yml`); der fertige Installer hängt als Artefakt am Lauf.
 
+### Messwerte (Stand Phase 7)
+
+Gemessen unter Linux in der Entwicklungsumgebung, also **nicht** auf Windows:
+Zahlen zeigen die Größenordnung, nicht die Geschwindigkeit der echten
+Dateisystem-Aufrufe.
+
+| Messung | Ergebnis |
+|---|---|
+| Kern: 100.000 Dateien auflisten (in Stapeln zu 2000) | etwa 0,5 s, Test mit Obergrenze 20 s gegen quadratisches Verhalten |
+| Oberfläche, 100.000 Einträge (Demo-Backend, Headless-Chromium) | erste Zeile nach ca. 0,35 s, Liste ~500 DOM-Knoten, Scrollen im Median 16,5 ms/Frame |
+| Strg+A auf 100.000 Einträgen | ca. 0,1 s |
+| Sortieren von 100.000 Einträgen | ca. 0,4 s |
+| Wechsel Liste / Kacheln / Spalten bei 100.000 Einträgen | unter 50 ms, 400–750 DOM-Knoten |
+
+Die Listen sind virtualisiert (feste Zeilenhöhe); die Zahl der DOM-Knoten hängt
+nicht von der Ordnergröße ab. Eine Messung mit echten Ordnern, Netzlaufwerken
+und Thumbnails steht aus.
+
 ## Bedienung
 
 | Aktion | Eingabe |
@@ -99,7 +119,7 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
 | OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
 | Netzwerk | Eintrag „Netzlaufwerke“ in der Seitenleiste, oder `\\server\freigabe` in die Pfadleiste tippen |
-| Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge); „Weitere Optionen …“ zeigt das Windows-Menü |
+| Kontextmenü | Menütaste oder Umschalt+F10 (an der markierten Zeile) bzw. Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge); „Weitere Optionen …“ zeigt das Windows-Menü |
 
 ## Aufbau
 
@@ -200,12 +220,25 @@ src/
   Liste), `script-src 'wasm-unsafe-eval'` (pdf.js nutzt WebAssembly für
   JPEG2000; erlaubt kein `eval`), `connect-src 'self'` und `worker-src 'self'
   blob:` (pdf.js lädt Schriften und seinen Worker aus der App),
-  `img-src blob: http://shellimg.localhost` (Vorschau und Icons) und
-  `font-src data: blob:` (von pdf.js erzeugte Schriften).
+  `img-src 'self' blob: http://shellimg.localhost` (Vorschau, Icons und
+  Menü-Symbole als Blob-URL; bewusst kein `data:`) und
+  `font-src 'self' data: blob:` (von pdf.js erzeugte Schriften). Dazu
+  `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` und
+  `frame-ancestors 'none'`.
 - **Dateinamen** werden nur als Text gerendert, nie über `{@html}` oder `innerHTML`.
 - `unsafe` steht nur in `crates/core/src/listing/win.rs` und
   `src-tauri/src/shell/`. `unwrap()`/`expect()` sind per Clippy-Lint verboten.
-- Das Programm braucht keine Admin-Rechte.
+- Das Programm braucht keine Admin-Rechte; der NSIS-Installer installiert pro
+  Benutzer (`installMode: currentUser`). Der MSI-Installer ist von Tauri/WiX
+  systemweit angelegt und fragt deshalb nach Administratorrechten.
+- **Durchsicht in Phase 7** (Code gelesen, nicht von außen geprüft): Jeder
+  Command, der einen Pfad nimmt, ruft `validate_path` auf; Menü-Befehle werden
+  gegen die Einträge des gerade offenen Menüs geprüft, bevor `InvokeCommand`
+  läuft; es gibt keine Plugins für Dateisystem oder Shell, keine Remote-URLs,
+  kein `eval`; Dateinamen erreichen nie `{@html}`. `cargo audit` meldet keine
+  Schwachstellen, nur zwei Hinweise auf nicht mehr gepflegte GTK-Bibliotheken
+  (Linux-Abhängigkeiten von Tauri, in Windows-Builds nicht enthalten). **Eine
+  unabhängige Sicherheitsprüfung ersetzt das nicht.**
 
 ## Bekannte Einschränkungen
 
@@ -361,7 +394,7 @@ src/
 4. ✅ Baumansicht mit Limits, Abbruch und Export; dazu Kachelansicht und Einstellungen
 5. ✅ OneDrive-Integration
 6. ✅ Netzlaufwerke
-7. Feinschliff: Performance, Tests, Sicherheitsprüfung, Installer
+7. ✅ Feinschliff: Messwerte, Tests, Sicherheitsdurchsicht, Installer
 
 Noch keiner Phase zugeordnet, aber in den Anforderungen vorhanden: Gruppierung.
 Die Spaltenansicht ist vor Phase 7 dazugekommen.

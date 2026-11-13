@@ -120,7 +120,8 @@
   function onBackgroundContext(event: MouseEvent) {
     if ((event.target as Element).closest('.row')) return;
     event.preventDefault();
-    pane.clearSelection();
+    // Menütaste / Umschalt+F10 (kein Rechtsklick): Menü der aktuellen Auswahl.
+    if (event.button === 2) pane.clearSelection();
     void ops.contextMenu(pane);
   }
 

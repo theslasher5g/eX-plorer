@@ -61,6 +61,8 @@ export function createItemActions(getPane: () => Pane, getItems: () => Entry[]) 
     backgroundContext(event: MouseEvent) {
       event.preventDefault();
       const pane = getPane();
+      // Menütaste / Umschalt+F10 (kein Rechtsklick): Menü der aktuellen Auswahl.
+      if (event.button !== 2) return void ops.contextMenu(pane);
       pane.clearSelection();
       void ops.contextMenu(pane);
     },

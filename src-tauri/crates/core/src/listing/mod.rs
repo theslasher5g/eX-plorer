@@ -172,6 +172,24 @@ mod tests {
         assert_eq!(sizes, [2000, 2000, 1000]);
     }
 
+    /// 100.000 Dateien: alles kommt in Stapeln an, nichts geht verloren, und die
+    /// Zeit wächst nicht überlinear (grobe Obergrenze gegen versehentlich
+    /// quadratisches Verhalten).
+    #[test]
+    fn hundred_thousand_files_stream_in_chunks() {
+        let tmp = tempfile::tempdir().unwrap();
+        for i in 0..100_000 {
+            fs::File::create(tmp.path().join(format!("f{i:06}.dat"))).unwrap();
+        }
+        let started = std::time::Instant::now();
+        let (entries, sizes) = collect(tmp.path(), 2000);
+        let took = started.elapsed();
+        assert_eq!(entries.len(), 100_000);
+        assert_eq!(sizes.len(), 50);
+        assert!(sizes.iter().all(|&n| n == 2000));
+        assert!(took.as_secs() < 20, "Auflisten dauerte {took:?}");
+    }
+
     /// Ein Link, der auf seinen eigenen Elternordner zeigt (Endlosschleife),
     /// wird als Link gemeldet und nicht verfolgt.
     #[test]

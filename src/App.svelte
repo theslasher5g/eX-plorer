@@ -124,6 +124,20 @@ import { dialogs } from './lib/stores/dialog.svelte';
     else if (event.button === 4) void pane.forward();
   }
 
+  // Merkt, wo das Menü erscheinen soll: beim Rechtsklick am Zeiger, über die
+  // Tastatur (Menütaste, Umschalt+F10) an der markierten Zeile.
+  function onContextPoint(event: MouseEvent) {
+    let point = { x: event.clientX, y: event.clientY };
+    if (event.button !== 2) {
+      const row = document.querySelector('.row.cursor, .tile.cursor, .crow.cur, .row.sel, .tile.sel, .crow.sel');
+      if (row) {
+        const rect = row.getBoundingClientRect();
+        point = { x: rect.left + Math.min(48, rect.width / 2), y: rect.bottom - 4 };
+      }
+    }
+    contextmenu.point = point;
+  }
+
   // Das Browser-Kontextmenü der WebView hat in der App nichts verloren.
   function onContextmenu(event: MouseEvent) {
     if (!isTextInput(event.target)) event.preventDefault();
@@ -134,7 +148,7 @@ import { dialogs } from './lib/stores/dialog.svelte';
   onkeydown={onKeydown}
   onmouseup={onMouseup}
   oncontextmenu={onContextmenu}
-  oncontextmenucapture={(event) => (contextmenu.point = { x: event.clientX, y: event.clientY })}
+  oncontextmenucapture={onContextPoint}
 />
 
 <div class="win">
