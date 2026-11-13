@@ -319,14 +319,25 @@ function mi(id: number, label: string, position: number, extra: Partial<MenuItem
 const sep = (position: number): MenuItem => ({ ...mi(0, '', position), separator: true, disabled: true });
 
 /** Ein Menü, wie Windows es etwa liefert (Demo). */
-function demoMenu(onItems: boolean, newTabLabel: string | null, extras: { id: number; label: string }[]): MenuItem[] {
+function demoMenu(
+  onItems: boolean,
+  newTabLabel: string | null,
+  extras: { id: number; label: string; skipIf?: string[] }[],
+): MenuItem[] {
   const out: MenuItem[] = [];
   let pos = 0;
   const add = (item: (position: number) => MenuItem) => out.push(item(pos++));
   if (onItems) {
     add((p) => mi(1, 'Öffnen', p, { default: true }));
     if (newTabLabel) add((p) => mi(0x7000, newTabLabel, p));
-    for (const extra of extras) add((p) => mi(extra.id, extra.label, p));
+    // Wie Windows beim Ordner: der eigene Eintrag „An Schnellzugriff anheften“.
+    if (newTabLabel) add((p) => mi(14, 'An Schnellzugriff anheften', p));
+    const present = new Set(out.map((i) => i.label.toLowerCase()));
+    for (const extra of extras) {
+      // Wie das echte Backend: nicht doppelt, wenn das Menü den Eintrag schon hat.
+      if ([extra.label, ...(extra.skipIf ?? [])].some((text) => present.has(text.toLowerCase()))) continue;
+      add((p) => mi(extra.id, extra.label, p));
+    }
     add((p) => mi(10, 'Mit Visual Studio öffnen', p, { icon: PIXEL }));
     add(sep);
     add((p) => mi(11, 'Zugriff gewähren auf', p, { submenu: true }));
@@ -389,6 +400,7 @@ let settings: Settings = {
   treePerDir: 200,
   tileSize: 132,
   servers: ['\\\\nas', '\\\\buchhaltung', '\\\\srv-alt'],
+  favorites: [],
 };
 
 // --- Netzwerk (Demo) -------------------------------------------------------
@@ -690,7 +702,7 @@ export const mockApi: Api = {
   },
   async menuInvoke(_session, id) {
     calls.invoked.push(id);
-    const verbs: Record<number, string> = { 1: 'open', 2: 'cut', 3: 'copy', 4: 'paste', 5: 'rename', 6: 'delete' };
+    const verbs: Record<number, string> = { 1: 'open', 2: 'cut', 3: 'copy', 4: 'paste', 5: 'rename', 6: 'delete', 14: 'pintohome' };
     if (id === 0x7000) return { kind: 'newTab' };
     if (id >= 0x7001) return { kind: 'extra', id };
     return verbs[id] ? { kind: 'verb', verb: verbs[id] } : { kind: 'done' };

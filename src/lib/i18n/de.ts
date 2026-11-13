@@ -82,6 +82,13 @@ export const de = {
   'open.confirm': 'Öffnen',
   'dnd.moveTo': 'Nach „{name}“ verschieben',
   'dnd.copyTo': 'Nach „{name}“ kopieren',
+  'favorites.pin': 'An Favoriten anheften',
+  'favorites.unpin': 'Von Favoriten lösen',
+  'favorites.pinned': '„{name}“ an Favoriten angeheftet',
+  'favorites.unpinned': '„{name}“ von Favoriten gelöst',
+  'favorites.already': '„{name}“ ist schon angeheftet',
+  'favorites.full': 'Es lassen sich höchstens 40 Ordner anheften.',
+  'favorites.unpinTitle': 'Von Favoriten lösen: {name}',
   'menu.newTab': 'In neuem Tab öffnen',
   'menu.more': 'Weitere Optionen …',
 

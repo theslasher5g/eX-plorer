@@ -57,7 +57,17 @@ pub const EXTRA_IDS: std::ops::RangeInclusive<u32> = 0x7001..=0x70FF;
 const WM_REQUEST: u32 = WM_APP + 1;
 
 /// Verben, die die Oberfläche selbst ausführt.
-const APP_VERBS: &[&str] = &["open", "cut", "copy", "paste", "delete", "rename"];
+const APP_VERBS: &[&str] = &[
+    "open",
+    "cut",
+    "copy",
+    "paste",
+    "delete",
+    "rename",
+    // „An Schnellzugriff anheften“ bzw. „lösen“ gelten für die Favoriten der App.
+    "pintohome",
+    "unpinfromhome",
+];
 
 pub enum Target {
     /// Markierte Elemente (alle im selben Ordner).

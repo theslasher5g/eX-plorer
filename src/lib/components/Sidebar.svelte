@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { Component } from 'svelte';
-  import { Cloud, Disc, Download, FileText, Globe, HardDrive, Image, Monitor, Network, SlidersHorizontal, Usb } from '@lucide/svelte';
+  import { Cloud, Disc, Download, FileText, Folder, Globe, HardDrive, Image, Monitor, Network, PinOff, SlidersHorizontal, Usb } from '@lucide/svelte';
   import type { Drive, DriveKind, PlaceKind, SidebarData } from '../api';
   import { formatSize } from '../format';
   import { t } from '../i18n';
   import { NETWORK_PATH, samePath } from '../paths';
   import { dnd } from '../stores/dnd.svelte';
+  import { favoriteLabel, favorites } from '../stores/favorites.svelte';
   import { settings } from '../stores/settings.svelte';
 
   let {
@@ -35,6 +36,11 @@
     cdrom: Disc,
   };
 
+  /** Angeheftete Ordner, die nicht ohnehin schon zu den festen Favoriten gehören. */
+  const pinned = $derived(
+    favorites.list.filter((path) => !data?.favorites.some((place) => samePath(place.path, path))),
+  );
+
   function driveName(drive: Drive): string {
     return `${drive.label || t(`drive.${drive.kind}`)} (${drive.path.slice(0, 2)})`;
   }
@@ -61,10 +67,23 @@
 
 <aside class="side" aria-label={t('sidebar.label')}>
   {#if data}
-    {#if data.favorites.length}
+    {#if data.favorites.length || pinned.length}
       <div class="gtitle">{t('sidebar.favorites')}</div>
       {#each data.favorites as place (place.path)}
         {@render item(placeIcons[place.kind], place.label || t(`place.${place.kind}`), place.path, place.path)}
+      {/each}
+      {#each pinned as path (path)}
+        <div class="pin">
+          {@render item(Folder, favoriteLabel(path), path, path)}
+          <button
+            class="unpin"
+            title={t('favorites.unpinTitle', { name: favoriteLabel(path) })}
+            aria-label={t('favorites.unpinTitle', { name: favoriteLabel(path) })}
+            onclick={() => favorites.unpin(path)}
+          >
+            <PinOff size={14} strokeWidth={1.8} />
+          </button>
+        </div>
       {/each}
     {/if}
 
@@ -102,6 +121,35 @@
     flex: none;
     padding: 6px 10px 12px;
     overflow: auto;
+  }
+
+  .pin {
+    position: relative;
+  }
+
+  .unpin {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    color: var(--muted);
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: opacity var(--t-hover), background var(--t-hover);
+  }
+
+  .pin:hover .unpin,
+  .unpin:focus-visible {
+    opacity: 1;
+  }
+
+  .unpin:hover {
+    background: var(--press);
+    color: var(--text);
   }
 
   .gap {

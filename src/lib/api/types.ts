@@ -168,6 +168,8 @@ export interface Settings {
   tileSize: number;
   /** Vom Benutzer hinzugefügte Server (`\\server`). */
   servers: string[];
+  /** An die Seitenleiste angeheftete Ordner. */
+  favorites: string[];
 }
 
 export interface TreeEntry {

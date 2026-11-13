@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   treePerDir: 200,
   tileSize: 132,
   servers: [],
+  favorites: [],
 };
 
 /** Grenzen der Regler; das Backend erzwingt dieselben Werte noch einmal. */

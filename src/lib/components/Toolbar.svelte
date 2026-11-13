@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ArrowLeft, ArrowRight, ArrowUp, Columns3, FolderPlus, LayoutGrid, List, ListTree, Search, X } from '@lucide/svelte';
+  import { ArrowLeft, ArrowRight, ArrowUp, Columns3, FolderPlus, LayoutGrid, List, ListTree, Pin, PinOff, Search, X } from '@lucide/svelte';
   import type { Component } from 'svelte';
   import { t } from '../i18n';
+  import { favorites } from '../stores/favorites.svelte';
   import { ops } from '../stores/ops.svelte';
   import type { Pane, ViewMode } from '../stores/pane.svelte';
   import Breadcrumb from './Breadcrumb.svelte';
@@ -49,6 +50,24 @@
   </div>
 
   <Breadcrumb bind:this={breadcrumb} path={pane.path} onnavigate={(path) => pane.navigate(path)} />
+
+  {#if !pane.isNetwork && pane.path && !pane.error}
+    {@const pinned = favorites.isPinned(pane.path)}
+    <button
+      class="icon-btn pinbtn"
+      class:on={pinned}
+      title={t(pinned ? 'favorites.unpin' : 'favorites.pin')}
+      aria-label={t(pinned ? 'favorites.unpin' : 'favorites.pin')}
+      aria-pressed={pinned}
+      onclick={() => favorites.toggle(pane.path)}
+    >
+      {#if pinned}
+        <PinOff size={18} strokeWidth={1.7} />
+      {:else}
+        <Pin size={18} strokeWidth={1.7} />
+      {/if}
+    </button>
+  {/if}
 
   <div class="seg" role="group" aria-label={t('view.label')} style:display={pane.isNetwork ? 'none' : undefined}>
     {#each views as view (view.id)}
@@ -109,6 +128,10 @@
     gap: 10px;
     padding: 0 14px;
     border-bottom: 1px solid var(--border);
+  }
+
+  .pinbtn.on {
+    color: var(--accent);
   }
 
   .navpair {

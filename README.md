@@ -118,6 +118,7 @@ und Thumbnails steht aus.
 | Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Spalten, Strg+4 Baum, oder der Umschalter in der Werkzeugleiste |
 | Spalten bedienen | Klick auf einen Ordner öffnet ihn rechts daneben, Klick auf eine Datei zeigt die Vorschau; Pfeil auf/ab wählt, Pfeil rechts/links wechselt die Spalte, Eingabetaste bzw. Doppelklick öffnet (Ordner: der Tab wechselt dorthin) |
 | Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
+| Favoriten anheften | Rechtsklick auf einen Ordner → „An Schnellzugriff anheften“ (bzw. „An Favoriten anheften“), oder der Pin-Knopf in der Werkzeugleiste für den offenen Ordner; lösen per Rechtsklick, Pin-Knopf oder dem Symbol neben dem Eintrag in der Seitenleiste |
 | Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
 | OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
 | Netzwerk | Eintrag „Netzlaufwerke“ in der Seitenleiste, oder `\\server\freigabe` in die Pfadleiste tippen |
@@ -366,6 +367,14 @@ src/
   Berühren in der Höhe, das Rechteck muss die Zeile also nicht an ihrem Namen
   treffen. Das Ziehen beginnt nur auf freier Fläche; von einer Zeile aus
   startet wie bisher das Ziehen der Dateien.
+- **Favoriten / Schnellzugriff:** Angeheftete Ordner stehen in der Seitenleiste
+  unter „Favoriten“ hinter den festen Einträgen und werden in den Einstellungen
+  gespeichert (höchstens 40, nur gültige Pfade). Es sind die **Favoriten der
+  App**, nicht der Windows-Schnellzugriff: Dessen angeheftete und häufige
+  Ordner liest die App nicht, und „An Schnellzugriff anheften“ im Menü wirkt
+  nur auf die App-Favoriten, nicht auf den Explorer. Die Reihenfolge ist die
+  des Anheftens (kein Umsortieren), ein gelöschter Ordner bleibt stehen, bis
+  du ihn löst.
 - **Einstellungen** (vier Bereiche wie im Design, Strg+,): *Darstellung*
   (Erscheinungsbild Hell / Dunkel / Automatisch, Dateiendungen anzeigen,
   versteckte Dateien, Startansicht neuer Tabs, Kachelgröße), *Baumansicht*

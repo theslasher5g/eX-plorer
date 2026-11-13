@@ -11,6 +11,7 @@ import { errorText, itemsText, t } from '../i18n';
 import { joinPath, parentPath, samePath, splitPath } from '../paths';
 import { contextmenu } from './contextmenu.svelte';
 import { dialogs } from './dialog.svelte';
+import { favorites } from './favorites.svelte';
 import { onedrive } from './onedrive.svelte';
 import type { Pane } from './pane.svelte';
 import type { Tabs } from './tabs.svelte';
@@ -21,6 +22,8 @@ const NO_RECYCLE_BIN = new Set(['remote', 'removable', 'cdrom']);
 // Eigene Einträge im nativen Menü (Bereich 0x7001–0x70FF).
 const MENU_KEEP = 0x7001;
 const MENU_FREE = 0x7002;
+const MENU_PIN = 0x7003;
+const MENU_UNPIN = 0x7004;
 
 /**
  * Dateioperationen der aktiven Ansicht: Kopieren, Ausschneiden, Einfügen,
@@ -238,6 +241,16 @@ class Ops {
               { id: MENU_FREE, label: t('onedrive.free'), skipIf: ['Free up space'] },
             ]
           : [];
+      // Ein einzelner Ordner lässt sich an die Favoriten heften (Windows' eigener
+      // Eintrag „An Schnellzugriff anheften“ wirkt ebenso, siehe `#runVerb`).
+      if (folder) {
+        const pinned = favorites.isPinned(joinPath(pane.path, folder.name));
+        extras.push(
+          pinned
+            ? { id: MENU_UNPIN, label: t('favorites.unpin'), skipIf: ['Unpin from Quick access', 'Von Schnellzugriff lösen'] }
+            : { id: MENU_PIN, label: t('favorites.pin'), skipIf: ['Pin to Quick access', 'An Schnellzugriff anheften'] },
+        );
+      }
       const outcome = await contextmenu.show({
         paths,
         folder: paths.length === 0 ? pane.path : null,
@@ -249,7 +262,9 @@ class Ops {
           if (folder) this.#tabs?.open(joinPath(pane.path, folder.name));
           break;
         case 'extra':
-          await this.setPinned(pane, paths, outcome.id === MENU_KEEP);
+          if (outcome.id === MENU_PIN && folder) favorites.pin(joinPath(pane.path, folder.name));
+          else if (outcome.id === MENU_UNPIN && folder) favorites.unpin(joinPath(pane.path, folder.name));
+          else await this.setPinned(pane, paths, outcome.id === MENU_KEEP);
           break;
         case 'done':
           // Die Shell hat selbst gehandelt (z. B. „Neu“, Archiv, Eigenschaften).
@@ -309,6 +324,14 @@ class Ops {
         return this.remove();
       case 'rename':
         return this.startRename();
+      case 'pintohome':
+      case 'unpinfromhome': {
+        // Gilt dem markierten Ordner, sonst dem Ordner, der gerade offen ist.
+        const target = selected.length === 1 && selected[0].isDir ? joinPath(pane.path, selected[0].name) : pane.path;
+        if (verb === 'pintohome') favorites.pin(target);
+        else favorites.unpin(target);
+        return;
+      }
       case 'open':
         for (const entry of selected.slice(0, 10)) {
           if (entry.isDir && selected.length > 1) this.#tabs?.open(joinPath(pane.path, entry.name));

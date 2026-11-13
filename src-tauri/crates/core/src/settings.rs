@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::network::parse_server;
+use crate::path::validate_path;
 use crate::tree::Limits;
 
 /// Erscheinungsbild: folgt Windows oder ist fest hell bzw. dunkel.
@@ -47,10 +48,13 @@ pub struct Settings {
     pub tile_size: u32,
     /// Vom Benutzer hinzugefügte Server (`\\server`) für die Freigaben-Liste.
     pub servers: Vec<String>,
+    /// An die Seitenleiste angeheftete Ordner („Schnellzugriff“).
+    pub favorites: Vec<String>,
 }
 
 /// Mehr hinzugefügte Server sind unrealistisch.
 pub const MAX_SERVERS: usize = 20;
+pub const MAX_FAVORITES: usize = 40;
 
 pub const NET_TIMEOUT_MIN: u32 = 5;
 pub const NET_TIMEOUT_MAX: u32 = 60;
@@ -73,6 +77,7 @@ impl Default for Settings {
             tree_per_dir: Limits::DEFAULT.max_per_dir,
             tile_size: 132,
             servers: Vec::new(),
+            favorites: Vec::new(),
         }
     }
 }
@@ -101,6 +106,19 @@ impl Settings {
         }
         servers.truncate(MAX_SERVERS);
         self.servers = servers;
+        // Angeheftete Ordner: nur gültige absolute Pfade, normalisiert, ohne Doppelte.
+        let mut favorites: Vec<String> = Vec::new();
+        for raw in &self.favorites {
+            let Ok(path) = validate_path(raw) else {
+                continue;
+            };
+            let path = path.into_string();
+            if favorites.iter().all(|f| !f.eq_ignore_ascii_case(&path)) {
+                favorites.push(path);
+            }
+        }
+        favorites.truncate(MAX_FAVORITES);
+        self.favorites = favorites;
         self
     }
 
@@ -191,5 +209,29 @@ mod tests {
             serde_json::from_str(r#"{"theme":"dark","startView":"columns"}"#).unwrap();
         assert_eq!((s.theme, s.start_view), (Theme::Dark, StartView::Columns));
         assert!(serde_json::from_str::<Settings>(r#"{"theme":"rot"}"#).is_err());
+    }
+
+    #[test]
+    fn sanitizes_favorites() {
+        let s = Settings {
+            favorites: vec![
+                r"C:\Users\Anna\Projekte".into(),
+                r"c:\users\anna\projekte".into(),
+                r"relative\pfad".into(),
+                r"C:\..\Windows".into(),
+                r"\\.\pipe\x".into(),
+                r"D:\Daten".into(),
+                String::new(),
+            ],
+            ..Settings::default()
+        }
+        .sanitized();
+        assert_eq!(s.favorites, [r"C:\Users\Anna\Projekte", r"D:\Daten"]);
+        let many = Settings {
+            favorites: (0..100).map(|i| format!(r"C:\ordner{i}")).collect(),
+            ..Settings::default()
+        }
+        .sanitized();
+        assert_eq!(many.favorites.len(), MAX_FAVORITES);
     }
 }
