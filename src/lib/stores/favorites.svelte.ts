@@ -43,6 +43,18 @@ class Favorites {
     toasts.show(t('favorites.unpinned', { name: favoriteLabel(path) }));
   }
 
+  /** Stellt `path` vor `before` (ans Ende, wenn `before` fehlt). */
+  reorder(path: string, before: string | null): void {
+    if (!this.isPinned(path) || (before !== null && samePath(before, path))) return;
+    const rest = this.list.filter((p) => !samePath(p, path));
+    const index = before === null ? -1 : rest.findIndex((p) => samePath(p, before));
+    const own = this.list.find((p) => samePath(p, path)) ?? path;
+    if (index < 0) rest.push(own);
+    else rest.splice(index, 0, own);
+    if (rest.every((p, i) => p === this.list[i])) return;
+    settings.update({ favorites: rest });
+  }
+
   toggle(path: string): void {
     if (this.isPinned(path)) this.unpin(path);
     else this.pin(path);

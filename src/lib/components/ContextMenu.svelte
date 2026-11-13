@@ -151,7 +151,7 @@
     <div class="cm" role="menu" data-depth={depth} use:place={level.anchor}>
       {#each level.items as item, index (index)}
         {#if item.separator}
-          <hr role="separator" />
+          <hr />
         {:else}
           <button
             class="mi"

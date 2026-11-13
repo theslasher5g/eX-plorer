@@ -353,6 +353,7 @@ function demoMenu(
     add((p) => mi(7, 'Eigenschaften', p));
   } else {
     add((p) => mi(4, 'Einfügen', p, { shortcut: 'Strg+V' }));
+    for (const extra of extras) add((p) => mi(extra.id, extra.label, p));
     add(sep);
     add((p) => mi(13, 'Neu', p, { submenu: true }));
     add(sep);

@@ -43,6 +43,8 @@ class ContextMenu {
   #pending: { resolve: (outcome: MenuOutcome) => void; reject: (err: unknown) => void } | null = null;
   #urls: string[] = [];
   #opening = false;
+  /** Ein rein lokales Menü (ohne Windows-Sitzung), z. B. in der Seitenleiste. */
+  #local = false;
 
   get isOpen(): boolean {
     return this.levels.length > 0;
@@ -68,6 +70,20 @@ class ContextMenu {
     } finally {
       this.#opening = false;
     }
+  }
+
+  /**
+   * Zeigt ein einfaches Menü aus eigenen Einträgen (ohne Windows). Liefert die
+   * Kennung des gewählten Eintrags oder `null`.
+   */
+  async showLocal(entries: { id: number; label: string }[]): Promise<number | null> {
+    this.dismiss();
+    this.#local = true;
+    this.#session = 0;
+    const items = entries.map((entry, index) => ({ ...BLANK, id: entry.id, label: entry.label, position: index }));
+    this.levels = [{ items, path: [], anchor: { ...this.point } }];
+    const outcome = await new Promise<MenuOutcome>((resolve, reject) => (this.#pending = { resolve, reject }));
+    return outcome.kind === 'extra' ? outcome.id : null;
   }
 
   /** Symbole als Blob-URL (die CSP erlaubt keine data:-Bilder). */
@@ -119,6 +135,12 @@ class ContextMenu {
   async choose(item: MenuItem): Promise<void> {
     if (item.disabled || item.separator || item.submenu) return;
     if (item.id === MORE_ID) return this.native();
+    if (this.#local) {
+      this.#finish();
+      this.#pending?.resolve({ kind: 'extra', id: item.id });
+      this.#pending = null;
+      return;
+    }
     const session = this.#session;
     this.#finish();
     await this.#settle(async (api) => api.menuInvoke(session, item.id));
@@ -136,7 +158,7 @@ class ContextMenu {
     if (!this.isOpen) return;
     const session = this.#session;
     this.#finish();
-    void getApi().then((api) => api.menuClose(session)).catch(() => {});
+    if (!this.#local) void getApi().then((api) => api.menuClose(session)).catch(() => {});
     this.#pending?.resolve({ kind: 'dismissed' });
     this.#pending = null;
   }
@@ -152,6 +174,7 @@ class ContextMenu {
   }
 
   #finish(): void {
+    this.#local = false;
     this.levels = [];
     for (const url of this.#urls) URL.revokeObjectURL(url);
     this.#urls = [];

@@ -158,7 +158,12 @@ import { dialogs } from './lib/stores/dialog.svelte';
 <div class="win">
   <TitleBar {tabs} onnewtab={newTab} />
   <div class="body">
-    <Sidebar data={sidebar} current={pane.path} onnavigate={(path) => pane.navigate(path)} />
+    <Sidebar
+      data={sidebar}
+      current={pane.path}
+      onnavigate={(path) => pane.navigate(path)}
+      onnewtab={(path) => tabs.open(path)}
+    />
     <section class="right">
       <Toolbar bind:this={toolbar} {pane} />
       {#key pane.id}

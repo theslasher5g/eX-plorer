@@ -243,8 +243,10 @@ class Ops {
           : [];
       // Ein einzelner Ordner lässt sich an die Favoriten heften (Windows' eigener
       // Eintrag „An Schnellzugriff anheften“ wirkt ebenso, siehe `#runVerb`).
-      if (folder) {
-        const pinned = favorites.isPinned(joinPath(pane.path, folder.name));
+      // Auf der leeren Fläche gilt der Eintrag dem geöffneten Ordner.
+      const pinTarget = folder ? joinPath(pane.path, folder.name) : paths.length === 0 ? pane.path : null;
+      if (pinTarget) {
+        const pinned = favorites.isPinned(pinTarget);
         extras.push(
           pinned
             ? { id: MENU_UNPIN, label: t('favorites.unpin'), skipIf: ['Unpin from Quick access', 'Von Schnellzugriff lösen'] }
@@ -262,8 +264,8 @@ class Ops {
           if (folder) this.#tabs?.open(joinPath(pane.path, folder.name));
           break;
         case 'extra':
-          if (outcome.id === MENU_PIN && folder) favorites.pin(joinPath(pane.path, folder.name));
-          else if (outcome.id === MENU_UNPIN && folder) favorites.unpin(joinPath(pane.path, folder.name));
+          if (outcome.id === MENU_PIN && pinTarget) favorites.pin(pinTarget);
+          else if (outcome.id === MENU_UNPIN && pinTarget) favorites.unpin(pinTarget);
           else await this.setPinned(pane, paths, outcome.id === MENU_KEEP);
           break;
         case 'done':
