@@ -1,11 +1,12 @@
 <script lang="ts">
   import { File } from '@lucide/svelte';
-  import type { Entry } from '../api';
+  import type { Entry, SyncState } from '../api';
   import { extensionBadge, fileCategory } from '../filetypes';
   import { isCloudPlaceholder, shellImageUrl } from '../images';
   import { joinPath } from '../paths';
+  import SyncBadge from './SyncBadge.svelte';
 
-  let { entry, dir }: { entry: Entry; dir: string } = $props();
+  let { entry, dir, sync = null }: { entry: Entry; dir: string; sync?: SyncState | null } = $props();
 
   const badge = $derived(extensionBadge(entry.name));
   // Cloud-Platzhalter bekommen kein Thumbnail: das würde sie herunterladen.
@@ -50,9 +51,19 @@
       />
     {/if}
   {/if}
+  {#if sync}
+    <span class="corner"><SyncBadge state={sync} compact /></span>
+  {/if}
 </span>
 
 <style>
+  .corner {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    display: flex;
+  }
+
   .thumb {
     position: relative;
     width: 100%;

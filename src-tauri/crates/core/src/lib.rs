@@ -10,6 +10,7 @@ pub mod error;
 pub mod exec;
 pub mod imaging;
 pub mod listing;
+pub mod onedrive;
 pub mod ops;
 pub mod path;
 pub mod preview;

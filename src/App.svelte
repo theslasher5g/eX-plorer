@@ -4,6 +4,7 @@
   import { samePath } from './lib/paths';
   import { dialogs } from './lib/stores/dialog.svelte';
   import { dnd } from './lib/stores/dnd.svelte';
+  import { onedrive } from './lib/stores/onedrive.svelte';
   import { ops } from './lib/stores/ops.svelte';
   import { quicklook } from './lib/stores/quicklook.svelte';
   import { settings } from './lib/stores/settings.svelte';
@@ -42,6 +43,7 @@
       home = info.homeDir;
       void pane.navigate(home);
       sidebar = await api.sidebar();
+      onedrive.setRoots(sidebar.onedrive.map((place) => place.path));
 
       // Änderungen im Dateisystem (auch von anderen Programmen) nachladen.
       keep(

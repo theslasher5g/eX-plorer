@@ -7,6 +7,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use crate::attrs::SyncState;
 use crate::CoreError;
 
 #[cfg(not(windows))]
@@ -31,6 +32,8 @@ pub struct Entry {
     pub system: bool,
     /// Symlink oder Junction. Rekursive Operationen dürfen dem nicht folgen.
     pub is_link: bool,
+    /// OneDrive-Sync-Zustand; `None` außerhalb von Cloud-Ordnern.
+    pub sync: Option<SyncState>,
 }
 
 /// Listet `dir` auf und liefert die Einträge in Stapeln von höchstens

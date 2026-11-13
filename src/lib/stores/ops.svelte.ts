@@ -10,11 +10,16 @@ import {
 import { errorText, itemsText, t } from '../i18n';
 import { joinPath, parentPath, samePath } from '../paths';
 import { dialogs } from './dialog.svelte';
+import { onedrive } from './onedrive.svelte';
 import type { Pane } from './pane.svelte';
 import type { Tabs } from './tabs.svelte';
 import { toasts } from './toast.svelte';
 
 const NO_RECYCLE_BIN = new Set(['remote', 'removable', 'cdrom']);
+
+// Eigene Einträge im nativen Menü (Bereich 0x7001–0x70FF).
+const MENU_KEEP = 0x7001;
+const MENU_FREE = 0x7002;
 
 /**
  * Dateioperationen der aktiven Ansicht: Kopieren, Ausschneiden, Einfügen,
@@ -201,14 +206,27 @@ class Ops {
     const selected = pane.entries.filter((e) => pane.selected.has(e.name));
     const folder = selected.length === 1 && selected[0].isDir ? selected[0] : null;
     try {
+      // Im OneDrive-Ordner die beiden Cloud-Aktionen anbieten, sofern OneDrive
+      // sie nicht schon selbst im Menü hat.
+      const extras =
+        paths.length > 0 && onedrive.contains(pane.path)
+          ? [
+              { id: MENU_KEEP, label: t('onedrive.keep'), skipIf: ['Always keep on this device'] },
+              { id: MENU_FREE, label: t('onedrive.free'), skipIf: ['Free up space'] },
+            ]
+          : [];
       const outcome = await (await getApi()).contextMenu(
         paths,
         paths.length === 0 ? pane.path : null,
         folder ? t('menu.newTab') : null,
+        extras,
       );
       switch (outcome.kind) {
         case 'newTab':
           if (folder) this.#tabs?.open(joinPath(pane.path, folder.name));
+          break;
+        case 'extra':
+          await this.setPinned(pane, paths, outcome.id === MENU_KEEP);
           break;
         case 'done':
           // Die Shell hat selbst gehandelt (z. B. „Neu“, Archiv, Eigenschaften).
@@ -224,10 +242,21 @@ class Ops {
     }
   }
 
+  /** „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“. */
+  async setPinned(pane: Pane, paths: string[], pinned: boolean): Promise<void> {
+    try {
+      const count = await (await getApi()).onedriveSetPinned(paths, pinned);
+      toasts.show(t(pinned ? 'onedrive.doneKeep' : 'onedrive.doneFree', { items: itemsText(count) }));
+      void pane.refresh();
+    } catch (err) {
+      this.#fail(err);
+    }
+  }
+
   /** Natives Kontextmenü für eine Zeile der Baumansicht. */
   async treeContextMenu(pane: Pane, path: string, name: string, isDir: boolean): Promise<void> {
     try {
-      const outcome = await (await getApi()).contextMenu([path], null, isDir ? t('menu.newTab') : null);
+      const outcome = await (await getApi()).contextMenu([path], null, isDir ? t('menu.newTab') : null, []);
       if (outcome.kind === 'newTab') this.#tabs?.open(path);
       else if (outcome.kind === 'done') void pane.tree.start(pane.tree.root);
       else if (outcome.kind === 'verb' && outcome.verb === 'open') {

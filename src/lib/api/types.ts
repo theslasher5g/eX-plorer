@@ -8,7 +8,11 @@ export interface Entry {
   hidden: boolean;
   system: boolean;
   isLink: boolean;
+  /** OneDrive-Sync-Zustand; `null` außerhalb von Cloud-Ordnern. */
+  sync: SyncState | null;
 }
+
+export type SyncState = 'cloud' | 'local' | 'pinned' | 'syncing';
 
 export type PlaceKind = 'desktop' | 'documents' | 'downloads' | 'pictures' | 'onedrive';
 
@@ -16,6 +20,10 @@ export interface Place {
   kind: PlaceKind;
   label: string;
   path: string;
+  /** OneDrive: E-Mail-Adresse des Kontos. */
+  email?: string;
+  /** OneDrive: privates oder geschäftliches Konto. */
+  account?: 'personal' | 'business';
 }
 
 export type DriveKind = 'fixed' | 'removable' | 'remote' | 'cdrom' | 'ram' | 'unknown';
@@ -96,7 +104,17 @@ export type MenuOutcome =
   | { kind: 'dismissed' }
   | { kind: 'done' }
   | { kind: 'verb'; verb: string }
-  | { kind: 'newTab' };
+  | { kind: 'newTab' }
+  | { kind: 'extra'; id: number };
+
+/** Zusätzlicher Eintrag der App im nativen Kontextmenü. */
+export interface MenuExtra {
+  /** Eigene Kennung im Bereich 0x7001–0x70FF. */
+  id: number;
+  label: string;
+  /** Entfällt, wenn das Windows-Menü schon einen Eintrag mit einem dieser Texte hat. */
+  skipIf: string[];
+}
 
 export interface OpenResult {
   /** Die Datei kann Code ausführen; erst nach Bestätigung erneut öffnen. */
@@ -186,7 +204,14 @@ export interface Api {
   previewBytes(path: string): Promise<ArrayBuffer>;
   previewText(path: string): Promise<TextContent>;
   /** Zeigt das native Windows-Kontextmenü an der Mausposition. */
-  contextMenu(paths: string[], folder: string | null, newTabLabel: string | null): Promise<MenuOutcome>;
+  contextMenu(
+    paths: string[],
+    folder: string | null,
+    newTabLabel: string | null,
+    extras: MenuExtra[],
+  ): Promise<MenuOutcome>;
+  /** „Immer auf diesem Gerät behalten“ (true) bzw. „Speicherplatz freigeben“ (false). */
+  onedriveSetPinned(paths: string[], pinned: boolean): Promise<number>;
   openItem(path: string, confirmed: boolean): Promise<OpenResult>;
   treeScan(args: TreeScanArgs, onChunk: (chunk: TreeChunk) => void): Promise<TreeSummary>;
   treeCancel(scanId: number): Promise<void>;

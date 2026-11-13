@@ -3,10 +3,10 @@
 Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
 Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
-> **Stand: Phase 4 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
+> **Stand: Phase 5 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
 > Dateioperationen, Drag & Drop, Live-Aktualisierung, Windows-Icons, natives
 > Kontextmenü, Schnellvorschau, Listen-, Kachel- und Baumansicht mit Limits,
-> Einstellungen. OneDrive-Status und Netzwerk folgen (siehe
+> Einstellungen und die OneDrive-Integration. Netzwerklaufwerke folgen (siehe
 > [Fahrplan](#fahrplan)).
 
 Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
@@ -96,6 +96,7 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Baum, oder der Umschalter in der Werkzeugleiste |
 | Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
 | Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
+| OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
 | Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge) |
 
 ## Aufbau
@@ -111,14 +112,16 @@ src-tauri/
     src/preview.rs    Vorschau-Regeln (Art, Limits) und sichere Text-Dekodierung
     src/imaging.rs    BGRA → PNG für Icons und Thumbnails
     src/exec.rs       Welche Dateitypen beim Öffnen eine Rückfrage brauchen
-    src/attrs.rs      Cloud-Platzhalter-Erkennung
+    src/attrs.rs      Cloud-Platzhalter, Sync-Zustand, Pin-Attribute
+    src/onedrive.rs   OneDrive-Konten zusammenführen (Registry, Umgebung)
     src/watch.rs      Ordner-Watcher (notify), gebündelte Meldungen
     src/winerr.rs     HRESULT/Win32-Fehlercodes → Fehlerarten
   src/
     commands/         Tauri-Commands (einziger Weg vom Frontend ins System)
     shell/            Windows-Shell-Aufrufe: bekannte Ordner, Laufwerke,
                       IFileOperation, Zwischenablage (CF_HDROP), OLE-Drag, Tastenstatus,
-                      Icons/Thumbnails, Kontextmenü (eigener Thread), Datei öffnen
+                      Icons/Thumbnails, Kontextmenü (eigener Thread), Datei öffnen,
+                      OneDrive (Konten, Pin/Unpin), Registry (nur lesend)
     protocol.rs       URI-Schema shellimg (Icons/Thumbnails als PNG)
     workers.rs        Arbeits-Pool für Bildanfragen (neueste zuerst, begrenzte Warteschlange)
     state.rs          Fenstermaterial (Mica)
@@ -150,6 +153,13 @@ src/
   auf Doppelklick, Eingabetaste oder Menübefehl, und Typen, die Code ausführen
   können (exe, bat, ps1, msi, lnk, js …), erst nach ausdrücklicher Bestätigung.
   Die Liste dieser Typen steht im Backend (`exec.rs`, getestet).
+- **OneDrive arbeitet nur mit Metadaten.** Der Sync-Zustand kommt aus den
+  Verzeichniseinträgen (Attribute, Reparse-Tag, Cloud-Files-API
+  `CfGetPlaceholderStateFromFindData`), „Behalten“ und „Freigeben“ setzen nur
+  die Attribute PINNED bzw. UNPINNED; Herunterladen und Freigeben erledigt der
+  OneDrive-Client. Die Registry wird nur gelesen, und das Setzen ist auf
+  Pfade innerhalb der erkannten OneDrive-Ordner beschränkt (nicht auf deren
+  Wurzel).
 - **Cloud-Platzhalter werden nie gelesen.** Für „nur in der Cloud“-Dateien
   (OneDrive) erzeugt das Backend weder Icons noch Thumbnails noch Vorschauen;
   die Attribute werden vorher per Metadaten geprüft. Dasselbe gilt für Icons
@@ -182,7 +192,7 @@ src/
 
 ## Bekannte Einschränkungen
 
-- **Phase 2 bis 4 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
+- **Phase 2 bis 5 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
   Zwischenablage, Drag in andere Programme, Icon-Gewinnung, das native
   Kontextmenü und das Öffnen von Dateien greifen tief in Windows ein und lassen
   sich nur dort prüfen. Kompiliert und statisch geprüft sind sie, die Abläufe
@@ -256,7 +266,23 @@ src/
 - **Netzlaufwerke** werden in der Seitenleiste angezeigt, aber noch ohne
   Timeout und Offline-Status geöffnet. Ein nicht erreichbares Laufwerk friert
   die Oberfläche nicht ein, die Anzeige wartet aber, bis Windows aufgibt.
-- **OneDrive** wird bisher nur über Umgebungsvariablen erkannt, ohne Sync-Status.
+- **OneDrive:**
+  - Konten kommen aus der Registry (`HKCU\Software\Microsoft\OneDrive\Accounts`)
+    und den Umgebungsvariablen `OneDrive`, `OneDriveConsumer`,
+    `OneDriveCommercial`, ohne Doppelte. Nicht erkannt werden zu Bibliotheken
+    synchronisierte SharePoint-Ordner außerhalb des Konto-Ordners.
+  - Der Status steht in der Typ-Spalte (Liste) bzw. als Eckmarke (Kacheln),
+    nicht in der Baumansicht. „Wird synchronisiert“ gilt auch für normale
+    Dateien im OneDrive-Ordner, die der Client noch nicht umgewandelt hat;
+    versteckte und Systemdateien (desktop.ini) haben keinen Status. Pausiert
+    OneDrive, bleibt ein Eintrag entsprechend lange „Synchronisiert …“.
+  - Die beiden Aktionen kommen im Kontextmenü; hat OneDrive sie schon selbst
+    im Menü (deutsch oder englisch beschriftet), fügt die App sie nicht ein.
+    Bei anderer Windows-Sprache können sie doppelt erscheinen.
+  - Bei Ordnern wird das Attribut am Ordner gesetzt; ob OneDrive es auf den
+    bestehenden Inhalt anwendet, entscheidet der Client. Der Status ändert sich
+    erst, wenn OneDrive reagiert hat.
+  - Die Cloud-Files-API (`cldapi.dll`) gibt es ab Windows 10 1709.
 - **Streng geprüfte Pfade**: Ordner, deren Name auf Punkt oder Leerzeichen
   endet oder ein reservierter Gerätename ist (z. B. von WSL angelegt), lassen
   sich nicht öffnen. Dateinamen mit ungültigem UTF-16 werden mit
@@ -265,7 +291,7 @@ src/
   Hintergrund. Wegen der eigenen Titelleiste fehlt das Snap-Layout-Flyout beim
   Überfahren von „Maximieren“ (Win+Z und Ziehen an den Rand funktionieren).
 - **Getestet** wurde bisher: Kernlogik per Unit-Tests (u. a. Pfadvalidierung,
-  Operationsplanung, Watcher, Baum-Limits mit 100.000 Dateien in einem Ordner
+  Operationsplanung, Sync-Zustand und OneDrive-Konten, Watcher, Baum-Limits mit 100.000 Dateien in einem Ordner
   und einer Link-Endlosschleife), Windows-Code per Cross-Kompilierprüfung unter
   Linux und in der CI auf Windows, Oberfläche im Browser gegen das
   Demo-Backend (auch mit 100.000 Einträgen). Ein Test der fertigen App auf
@@ -277,7 +303,7 @@ src/
 2. ✅ Dateioperationen, Drag & Drop, Tabs, Live-Aktualisierung
 3. ✅ Icons, Thumbnails, Kontextmenü, Schnellvorschau, Datei öffnen
 4. ✅ Baumansicht mit Limits, Abbruch und Export; dazu Kachelansicht und Einstellungen
-5. OneDrive-Integration
+5. ✅ OneDrive-Integration
 6. Netzwerklaufwerke
 7. Feinschliff: Performance, Tests, Sicherheitsprüfung, Installer
 

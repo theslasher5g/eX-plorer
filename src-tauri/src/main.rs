@@ -55,6 +55,7 @@ fn main() {
             commands::preview::preview_text,
             commands::menu::context_menu,
             commands::menu::open_item,
+            commands::onedrive::onedrive_set_pinned,
             commands::tree::tree_scan,
             commands::tree::tree_cancel,
             commands::settings::settings_get,

@@ -3,6 +3,7 @@
   import { createItemActions } from '../itemActions';
   import { joinPath } from '../paths';
   import { dnd } from '../stores/dnd.svelte';
+  import { onedrive } from '../stores/onedrive.svelte';
   import { ops } from '../stores/ops.svelte';
   import type { Pane } from '../stores/pane.svelte';
   import { settings } from '../stores/settings.svelte';
@@ -166,7 +167,7 @@
               ondblclick={(event) => actions.dblClick(event, entry)}
               oncontextmenu={(event) => actions.context(event, index)}
             >
-              <Thumb {entry} dir={pane.path} />
+              <Thumb {entry} dir={pane.path} sync={onedrive.stateOf(entry, pane.path)} />
               {#if pane.renaming === entry.name}
                 <RenameBox
                   name={entry.name}

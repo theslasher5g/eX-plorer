@@ -25,6 +25,7 @@ function entry(name: string, isDir: boolean, size = 0, ageDays = 1, extra: Parti
     hidden: false,
     system: false,
     isLink: false,
+    sync: null,
     ...extra,
   };
 }
@@ -86,9 +87,24 @@ const tree: Record<string, Entry[]> = {
     f('Panorama.png', 18_440_221, 70),
   ],
   [`${HOME}\\OneDrive`]: [
-    d('Dokumente', 2),
-    f('Geteilt.docx', 20_480, 1),
-    f('Cloud-Bericht.pdf', 3_400_000, 9, { attributes: 0x400000 }),
+    d('Dokumente', 2, { sync: 'local' }),
+    d('Fotos', 1, { sync: 'syncing' }),
+    d('Familie', 40, { sync: 'cloud' }),
+    f('Geteilt.docx', 20_480, 1, { sync: 'local' }),
+    f('Mietvertrag.pdf', 842, 200, { sync: 'pinned' }),
+    f('Cloud-Bericht.pdf', 3_400_000, 9, { attributes: 0x400000, sync: 'cloud' }),
+    f('Hochzeit_Video.mp4', 2_411_724, 300, { attributes: 0x400000, sync: 'cloud' }),
+    f('Haushaltsbuch.xlsx', 212, 0, { sync: 'syncing' }),
+    f('Neu-ohne-Status.txt', 3, 0),
+    f('desktop.ini', 1, 90, { hidden: true, system: true }),
+  ],
+  [`${HOME}\\OneDrive - Contoso`]: [
+    d('Projekte', 3, { sync: 'local' }),
+    f('Angebot.docx', 90_000, 2, { sync: 'cloud', attributes: 0x400000 }),
+  ],
+  [`${HOME}\\OneDrive\\Dokumente`]: [
+    f('Notiz.txt', 1, 5, { sync: 'local' }),
+    f('Plan.pdf', 200, 5, { sync: 'cloud', attributes: 0x400000 }),
   ],
   'D:\\': [d('Backups', 7), d('Medien', 30)],
   'E:\\': [f('Foto.jpg', 2_048_000, 4), d('USB-Ordner', 9)],
@@ -286,7 +302,7 @@ function demoPdf(title: string): ArrayBuffer {
 }
 
 const RISKY = ['exe', 'bat', 'cmd', 'msi', 'ps1', 'lnk', 'js'];
-const calls = { menu: [] as unknown[], open: [] as unknown[] };
+const calls = { menu: [] as unknown[], open: [] as unknown[], pin: [] as unknown[] };
 let nextMenu: MenuOutcome = { kind: 'dismissed' };
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -337,7 +353,16 @@ export const mockApi: Api = {
         { path: 'E:\\', label: '', kind: 'removable', totalBytes: null, freeBytes: null },
         { path: 'Z:\\', label: '', kind: 'remote', totalBytes: null, freeBytes: null },
       ],
-      onedrive: [{ kind: 'onedrive', label: 'OneDrive', path: `${HOME}\\OneDrive` }],
+      onedrive: [
+        { kind: 'onedrive', label: 'OneDrive', path: `${HOME}\\OneDrive`, email: 'anna@mail.de', account: 'personal' },
+        {
+          kind: 'onedrive',
+          label: 'OneDrive - Contoso',
+          path: `${HOME}\\OneDrive - Contoso`,
+          email: 'anna@contoso.com',
+          account: 'business',
+        },
+      ],
     };
   },
   async listDir(path, onBatch) {
@@ -470,8 +495,21 @@ export const mockApi: Api = {
       : `Demo-Inhalt von ${entry.name}\n` + Array.from({ length: 80 }, (_, i) => `Zeile ${i + 1}`).join('\n');
     return { text: body, truncated: entry.name !== 'Notizen.txt' };
   },
-  async contextMenu(paths, folder, newTabLabel) {
-    calls.menu.push({ paths, folder, newTabLabel });
+  async onedriveSetPinned(paths, pinned) {
+    calls.pin.push({ paths, pinned });
+    for (const raw of paths) {
+      const p = norm(raw);
+      const entry = find(parentOf(p), nameOf(p));
+      if (!entry) fail('not_found');
+      // Der Client lädt herunter bzw. gibt frei; die Demo zeigt den Endzustand.
+      entry.sync = pinned ? 'pinned' : 'cloud';
+      entry.attributes = pinned ? 0x80000 : 0x400000;
+    }
+    changed(...paths.map((p) => parentOf(norm(p))));
+    return paths.length;
+  },
+  async contextMenu(paths, folder, newTabLabel, extras) {
+    calls.menu.push({ paths, folder, newTabLabel, extras });
     const outcome = nextMenu;
     nextMenu = { kind: 'dismissed' };
     return outcome;

@@ -28,10 +28,10 @@ use windows::Win32::UI::Shell::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DispatchMessageW, GetCursorPos,
-    GetMessageW, InsertMenuW, PostMessageW, RegisterClassW, SetForegroundWindow, TrackPopupMenuEx,
-    TranslateMessage, HMENU, MF_BYPOSITION, MF_STRING, MSG, SW_SHOWNORMAL, TPM_RETURNCMD,
-    TPM_RIGHTBUTTON, WM_APP, WM_DRAWITEM, WM_INITMENUPOPUP, WM_MEASUREITEM, WM_MENUCHAR, WM_NULL,
-    WNDCLASSW, WS_EX_TOOLWINDOW, WS_POPUP,
+    GetMenuItemCount, GetMenuStringW, GetMessageW, InsertMenuW, PostMessageW, RegisterClassW,
+    SetForegroundWindow, TrackPopupMenuEx, TranslateMessage, HMENU, MF_BYPOSITION, MF_STRING, MSG,
+    SW_SHOWNORMAL, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_DRAWITEM, WM_INITMENUPOPUP,
+    WM_MEASUREITEM, WM_MENUCHAR, WM_NULL, WNDCLASSW, WS_EX_TOOLWINDOW, WS_POPUP,
 };
 
 use super::items::{item, to_core};
@@ -41,6 +41,8 @@ const ID_FIRST: u32 = 1;
 const ID_LAST: u32 = 0x6FFF;
 /// Eigener Eintrag „In neuem Tab öffnen“, außerhalb des Bereichs der Shell.
 const ID_NEW_TAB: u32 = 0x7000;
+/// Erlaubter Bereich für Einträge, die das Frontend ergänzt.
+pub const EXTRA_IDS: std::ops::RangeInclusive<u32> = 0x7001..=0x70FF;
 const WM_REQUEST: u32 = WM_APP + 1;
 
 /// Verben, die die Oberfläche selbst ausführt.
@@ -53,12 +55,22 @@ pub enum Target {
     Background(ValidPath),
 }
 
+/// Zusätzlicher Eintrag der App im nativen Menü.
+pub struct Extra {
+    pub id: u32,
+    pub label: String,
+    /// Wird weggelassen, wenn das native Menü schon einen Eintrag mit einem
+    /// dieser Texte (oder dem eigenen) hat, z. B. von OneDrive selbst.
+    pub skip_if: Vec<String>,
+}
+
 pub struct Request {
     pub target: Target,
     /// Hauptfenster; erhält danach wieder den Vordergrund.
     pub owner: isize,
     /// Beschriftung für „In neuem Tab öffnen“; `None` lässt den Eintrag weg.
     pub new_tab_label: Option<String>,
+    pub extras: Vec<Extra>,
     reply: Sender<Result<Outcome, CoreError>>,
 }
 
@@ -70,6 +82,8 @@ pub enum Outcome {
     /// Die Oberfläche soll das Verb ausführen.
     Verb(String),
     NewTab,
+    /// Ein ergänzter Eintrag der App wurde gewählt.
+    Extra(u32),
 }
 
 type Queue = Arc<Mutex<VecDeque<Request>>>;
@@ -268,6 +282,30 @@ fn invoke(menu: &IContextMenu, hwnd: HWND, offset: u32, at: POINT) -> Result<(),
         .map_err(|e| to_core(&e))
 }
 
+/// Beschriftung ohne Tastenkürzel-Zusatz, für den Textvergleich.
+fn normalize(text: &str) -> String {
+    text.split('\t')
+        .next()
+        .unwrap_or_default()
+        .replace('&', "")
+        .trim()
+        .to_lowercase()
+}
+
+/// Texte der Einträge der obersten Menüebene.
+fn menu_texts(hmenu: HMENU) -> Vec<String> {
+    // SAFETY: gültiges Menü; der Puffer fasst die übergebene Länge.
+    unsafe {
+        (0..GetMenuItemCount(Some(hmenu)).max(0))
+            .map(|position| {
+                let mut buffer = [0u16; 256];
+                let len = GetMenuStringW(hmenu, position as u32, Some(&mut buffer), MF_BYPOSITION);
+                normalize(&String::from_utf16_lossy(&buffer[..len.max(0) as usize]))
+            })
+            .collect()
+    }
+}
+
 fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
     let menu = context_menu(&request.target, hwnd)?;
     let handler = menu
@@ -300,6 +338,31 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
             );
         }
 
+        // Einträge der App direkt hinter „Öffnen“ (und „In neuem Tab öffnen“).
+        let existing = menu_texts(hmenu);
+        let mut position = if request.new_tab_label.is_some() {
+            2
+        } else {
+            1
+        };
+        for extra in &request.extras {
+            let known = std::iter::once(&extra.label)
+                .chain(&extra.skip_if)
+                .any(|text| existing.contains(&normalize(text)));
+            if known {
+                continue;
+            }
+            let text = HSTRING::from(extra.label.as_str());
+            let _ = InsertMenuW(
+                hmenu,
+                position,
+                MF_BYPOSITION | MF_STRING,
+                extra.id as usize,
+                PCWSTR(text.as_ptr()),
+            );
+            position += 1;
+        }
+
         CURRENT.with(|c| *c.borrow_mut() = handler);
         let mut at = POINT::default();
         let _ = GetCursorPos(&raw mut at);
@@ -327,6 +390,9 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
         if id == ID_NEW_TAB {
             return Ok(Outcome::NewTab);
         }
+        if request.extras.iter().any(|extra| extra.id == id) {
+            return Ok(Outcome::Extra(id));
+        }
         let offset = id - ID_FIRST;
         if let Some(verb) = verb_of(&menu, offset) {
             if APP_VERBS.contains(&verb.as_str()) {
@@ -344,6 +410,7 @@ pub fn show(
     target: Target,
     owner: isize,
     new_tab_label: Option<String>,
+    extras: Vec<Extra>,
 ) -> Result<Outcome, CoreError> {
     let host = host().ok_or(CoreError::Unsupported)?;
     let (reply, wait) = channel();
@@ -354,6 +421,7 @@ pub fn show(
             target,
             owner,
             new_tab_label,
+            extras,
             reply,
         });
     // SAFETY: Das Fenster lebt für die Prozesslaufzeit; PostMessage ist thread-sicher.

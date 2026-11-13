@@ -36,6 +36,7 @@ pub(super) fn for_each_entry(
             attributes: 0,
             system: false,
             is_link,
+            sync: None,
         };
         if !visit(entry) {
             break;

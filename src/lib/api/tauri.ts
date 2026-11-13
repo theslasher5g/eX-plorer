@@ -51,8 +51,9 @@ export const tauriApi: Api = {
   previewInfo: (path) => invoke<PreviewInfo>('preview_info', { path }),
   previewBytes: (path) => invoke<ArrayBuffer>('preview_bytes', { path }),
   previewText: (path) => invoke<TextContent>('preview_text', { path }),
-  contextMenu: (paths, folder, newTabLabel) =>
-    invoke<MenuOutcome>('context_menu', { paths, folder, newTabLabel }),
+  contextMenu: (paths, folder, newTabLabel, extras) =>
+    invoke<MenuOutcome>('context_menu', { paths, folder, newTabLabel, extras }),
+  onedriveSetPinned: (paths, pinned) => invoke<number>('onedrive_set_pinned', { paths, pinned }),
   openItem: (path, confirmed) => invoke<OpenResult>('open_item', { path, confirmed }),
   treeScan(args, onChunk) {
     const channel = new Channel<TreeChunk>();

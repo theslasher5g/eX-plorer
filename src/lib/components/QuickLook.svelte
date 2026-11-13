@@ -6,6 +6,7 @@
   import { shellImageUrl } from '../images';
   import { errorText, t } from '../i18n';
   import { joinPath } from '../paths';
+  import { onedrive } from '../stores/onedrive.svelte';
   import { ops } from '../stores/ops.svelte';
   import { quicklook } from '../stores/quicklook.svelte';
   import FileIcon from './FileIcon.svelte';
@@ -36,6 +37,8 @@
     const parts = [typeLabel(entry)];
     if (!entry.isDir) parts.push(formatSize(entry.size));
     if (entry.modifiedMs !== null) parts.push(formatDate(entry.modifiedMs));
+    const sync = onedrive.stateOf(entry, dir);
+    if (sync) parts.push(t(`sync.${sync}`));
     return parts.join(' · ');
   });
 

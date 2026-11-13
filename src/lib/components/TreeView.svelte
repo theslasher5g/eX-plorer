@@ -44,7 +44,7 @@
   // Die Icon-Komponente erwartet einen Listeneintrag.
   function asEntry(row: Extract<TreeRow, { kind: 'entry' }>): Entry {
     const { name, isDir, isLink, size } = row.entry;
-    return { name, isDir, isLink, size, modifiedMs: null, createdMs: null, attributes: 0, hidden: false, system: false };
+    return { name, isDir, isLink, size, modifiedMs: null, createdMs: null, attributes: 0, hidden: false, system: false, sync: null };
   }
 
   function activate(row: TreeRow) {
@@ -194,7 +194,7 @@
             >
               {#if row.kind === 'root'}
                 <span class="tlabel root">
-                  <FileIcon entry={{ name: row.name, isDir: true, isLink: false, size: 0, modifiedMs: null, createdMs: null, attributes: 0, hidden: false, system: false }} dir="" />
+                  <FileIcon entry={{ name: row.name, isDir: true, isLink: false, size: 0, modifiedMs: null, createdMs: null, attributes: 0, hidden: false, system: false, sync: null }} dir="" />
                   <span class="nm" title={row.path}>{row.name}</span>
                 </span>
               {:else}

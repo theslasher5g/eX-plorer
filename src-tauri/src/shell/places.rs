@@ -1,8 +1,6 @@
 //! Orte für die Seitenleiste: bekannte Ordner, Laufwerke, OneDrive.
 
-use std::collections::HashSet;
-use std::path::Path;
-
+use explorer_core::onedrive::AccountKind;
 use explorer_core::path::validate_path;
 use serde::Serialize;
 use windows::core::{GUID, PCWSTR};
@@ -39,6 +37,12 @@ pub struct Place {
     /// Anzeigename; leer bedeutet, dass das Frontend den Namen aus `kind` ableitet.
     label: String,
     path: String,
+    /// OneDrive: E-Mail-Adresse des Kontos.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<String>,
+    /// OneDrive: `personal` oder `business`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -96,6 +100,8 @@ fn favorites() -> Vec<Place> {
             kind,
             label: String::new(),
             path,
+            email: None,
+            account: None,
         })
     })
     .collect()
@@ -186,20 +192,19 @@ pub fn is_remote(path: &explorer_core::path::ValidPath) -> bool {
     unsafe { GetDriveTypeW(PCWSTR(root.as_ptr())) == DRIVE_REMOTE }
 }
 
-/// Lokale OneDrive-Ordner aus den Umgebungsvariablen. Die vollständige
-/// Konten-Erkennung über die Registry folgt mit der OneDrive-Integration.
+/// Lokale OneDrive-Ordner, ein Eintrag je Konto (Registry und Umgebungsvariablen).
 fn onedrive() -> Vec<Place> {
-    let mut seen = HashSet::new();
-    ["OneDriveConsumer", "OneDriveCommercial", "OneDrive"]
+    super::onedrive::accounts()
         .into_iter()
-        .filter_map(|var| std::env::var(var).ok())
-        .filter_map(|raw| validate_path(&raw).ok())
-        .filter(|path| seen.insert(path.as_str().to_lowercase()))
-        .filter(|path| Path::new(path.as_str()).is_dir())
-        .map(|path| Place {
+        .map(|account| Place {
             kind: PlaceKind::OneDrive,
-            label: path.file_name().unwrap_or("OneDrive").to_owned(),
-            path: path.into_string(),
+            label: account.label,
+            path: account.path.into_string(),
+            email: account.email,
+            account: Some(match account.kind {
+                AccountKind::Personal => "personal",
+                AccountKind::Business => "business",
+            }),
         })
         .collect()
 }

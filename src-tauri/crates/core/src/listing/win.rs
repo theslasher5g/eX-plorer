@@ -9,6 +9,9 @@ use std::path::Path;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{ERROR_NO_MORE_FILES, HANDLE};
+use windows::Win32::Storage::CloudFilters::{
+    CfGetPlaceholderStateFromFindData, CF_PLACEHOLDER_STATE_INVALID, CF_PLACEHOLDER_STATE_IN_SYNC,
+};
 use windows::Win32::Storage::FileSystem::{
     FindClose, FindExInfoBasic, FindExSearchNameMatch, FindFirstFileExW, FindNextFileW,
     FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_HIDDEN, FILE_ATTRIBUTE_REPARSE_POINT,
@@ -16,6 +19,7 @@ use windows::Win32::Storage::FileSystem::{
 };
 
 use super::Entry;
+use crate::attrs::{is_cloud_reparse_tag, sync_state, SyncState};
 use crate::CoreError;
 
 const IO_REPARSE_TAG_MOUNT_POINT: u32 = 0xA000_0003;
@@ -42,6 +46,21 @@ fn filetime_to_ms(low: u32, high: u32) -> Option<i64> {
     Some((ticks - EPOCH_DIFF_100NS) / 10_000)
 }
 
+/// Sync-Zustand aus den Verzeichnisdaten. Die Cloud-Files-API wird nur für
+/// Cloud-Platzhalter befragt und liest dafür nichts von der Platte.
+fn cloud_sync_state(data: &WIN32_FIND_DATAW, attributes: u32) -> Option<SyncState> {
+    if attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 == 0 || !is_cloud_reparse_tag(data.dwReserved0) {
+        return None;
+    }
+    // SAFETY: Die Funktion liest nur Attribute und Reparse-Tag am Anfang der
+    // Struktur, die in der A- und der W-Variante identisch angeordnet sind.
+    let state =
+        unsafe { CfGetPlaceholderStateFromFindData((data as *const WIN32_FIND_DATAW).cast()) };
+    let in_sync = (state != CF_PLACEHOLDER_STATE_INVALID)
+        .then_some(state.0 & CF_PLACEHOLDER_STATE_IN_SYNC.0 != 0);
+    sync_state(attributes, data.dwReserved0, in_sync)
+}
+
 fn to_entry(data: &WIN32_FIND_DATAW) -> Option<Entry> {
     let len = data
         .cFileName
@@ -60,6 +79,7 @@ fn to_entry(data: &WIN32_FIND_DATAW) -> Option<Entry> {
             data.dwReserved0,
             IO_REPARSE_TAG_MOUNT_POINT | IO_REPARSE_TAG_SYMLINK
         );
+    let sync = cloud_sync_state(data, attributes);
     Some(Entry {
         name,
         is_dir,
@@ -80,6 +100,7 @@ fn to_entry(data: &WIN32_FIND_DATAW) -> Option<Entry> {
         hidden: attributes & FILE_ATTRIBUTE_HIDDEN.0 != 0,
         system: attributes & FILE_ATTRIBUTE_SYSTEM.0 != 0,
         is_link,
+        sync,
     })
 }
 

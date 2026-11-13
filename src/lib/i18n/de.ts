@@ -125,6 +125,16 @@ export const de = {
   'settings.perDirHint': 'Der Rest erscheint als „… und N weitere“ und lässt sich nachladen.',
   'settings.px': '{value} px',
 
+  'sync.cloud': 'Nur in der Cloud',
+  'sync.local': 'Auf diesem Gerät',
+  'sync.pinned': 'Immer behalten',
+  'sync.syncing': 'Synchronisiert …',
+  'onedrive.personal': 'OneDrive – Privat',
+  'onedrive.keep': 'Immer auf diesem Gerät behalten',
+  'onedrive.free': 'Speicherplatz freigeben',
+  'onedrive.doneKeep': 'Wird auf diesem Gerät behalten: {items}',
+  'onedrive.doneFree': 'Speicherplatz wird freigegeben: {items}',
+
   'sort.title': 'Sortieren',
   'sort.ascending': 'Aufsteigend',
   'sort.descending': 'Absteigend',

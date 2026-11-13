@@ -4,6 +4,7 @@
 pub mod app;
 pub mod fs;
 pub mod menu;
+pub mod onedrive;
 pub mod ops;
 pub mod preview;
 pub mod settings;

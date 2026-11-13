@@ -71,7 +71,12 @@
     {#if data.onedrive.length}
       <div class="gtitle">{t('sidebar.onedrive')}</div>
       {#each data.onedrive as place (place.path)}
-        {@render item(Cloud, place.label || t('place.onedrive'), place.path, place.path)}
+        {@render item(
+          Cloud,
+          place.account === 'personal' ? t('onedrive.personal') : place.label || t('place.onedrive'),
+          place.path,
+          place.email ? `${place.path} · ${place.email}` : place.path,
+        )}
       {/each}
     {/if}
 

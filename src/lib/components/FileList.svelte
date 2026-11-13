@@ -8,7 +8,9 @@
   import { joinPath } from '../paths';
   import { dnd } from '../stores/dnd.svelte';
   import { ops } from '../stores/ops.svelte';
+  import { onedrive } from '../stores/onedrive.svelte';
   import FileIcon from './FileIcon.svelte';
+  import SyncBadge from './SyncBadge.svelte';
   import RenameBox from './RenameBox.svelte';
 
   let { pane }: { pane: Pane } = $props();
@@ -258,6 +260,7 @@
         <div class="window" style:transform="translateY({start * ROW}px)" role="presentation">
           {#each rows as entry, i (entry.name)}
             {@const index = start + i}
+            {@const sync = onedrive.stateOf(entry, pane.path)}
             <!-- Der Fokus liegt immer auf dem Raster, nie auf einzelnen Zeilen. -->
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions, a11y_interactive_supports_focus -->
             <div
@@ -292,7 +295,13 @@
                 {formatDate(entry.modifiedMs)}
               </span>
               <span class="c-meta c-size" role="gridcell">{entry.isDir ? '—' : formatSize(entry.size)}</span>
-              <span class="c-meta" role="gridcell">{typeLabel(entry)}</span>
+              <span class="c-meta" role="gridcell">
+                {#if sync}
+                  <SyncBadge state={sync} />
+                {:else}
+                  {typeLabel(entry)}
+                {/if}
+              </span>
             </div>
           {/each}
         </div>

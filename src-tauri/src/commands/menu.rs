@@ -1,13 +1,13 @@
 use explorer_core::exec::is_risky_to_open;
 use explorer_core::path::{validate_path, ValidPath};
 use explorer_core::{attrs, CoreError};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::os::windows::fs::MetadataExt;
 use tauri::WebviewWindow;
 
 use super::blocking;
 use crate::error::AppError;
-use crate::shell::ctxmenu::{self, Outcome, Target};
+use crate::shell::ctxmenu::{self, Extra, Outcome, Target, EXTRA_IDS};
 use crate::shell::launch;
 
 #[derive(Debug, Serialize)]
@@ -17,6 +17,7 @@ pub enum MenuOutcome {
     Done,
     Verb { verb: String },
     NewTab,
+    Extra { id: u32 },
 }
 
 impl From<Outcome> for MenuOutcome {
@@ -26,8 +27,38 @@ impl From<Outcome> for MenuOutcome {
             Outcome::Done => Self::Done,
             Outcome::Verb(verb) => Self::Verb { verb },
             Outcome::NewTab => Self::NewTab,
+            Outcome::Extra(id) => Self::Extra { id },
         }
     }
+}
+
+/// Zusätzlicher Eintrag, den das Frontend ins Menü einfügen lässt.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuExtra {
+    id: u32,
+    label: String,
+    #[serde(default)]
+    skip_if: Vec<String>,
+}
+
+const MAX_EXTRAS: usize = 8;
+const MAX_LABEL: usize = 100;
+
+/// Nur Einträge im vorgesehenen ID-Bereich mit sinnvoller Beschriftung.
+fn validated(extras: Vec<MenuExtra>) -> Vec<Extra> {
+    extras
+        .into_iter()
+        .filter(|e| {
+            EXTRA_IDS.contains(&e.id) && !e.label.trim().is_empty() && e.label.len() <= MAX_LABEL
+        })
+        .take(MAX_EXTRAS)
+        .map(|e| Extra {
+            id: e.id,
+            label: e.label,
+            skip_if: e.skip_if.into_iter().take(8).collect(),
+        })
+        .collect()
 }
 
 fn owner(window: &WebviewWindow) -> isize {
@@ -42,6 +73,7 @@ pub async fn context_menu(
     paths: Vec<String>,
     folder: Option<String>,
     new_tab_label: Option<String>,
+    extras: Option<Vec<MenuExtra>>,
 ) -> Result<MenuOutcome, AppError> {
     let owner = owner(&window);
     let target = if paths.is_empty() {
@@ -64,7 +96,8 @@ pub async fn context_menu(
         }
         Target::Items(valid)
     };
-    blocking(move || Ok(ctxmenu::show(target, owner, new_tab_label)?.into())).await
+    let extras = validated(extras.unwrap_or_default());
+    blocking(move || Ok(ctxmenu::show(target, owner, new_tab_label, extras)?.into())).await
 }
 
 #[derive(Debug, Serialize)]
