@@ -134,15 +134,15 @@
     if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < DRAG_THRESHOLD) return;
     const { index } = press;
     endPress();
-    beginDrag(index);
+    beginDrag(index, event);
   }
 
-  function beginDrag(index: number) {
+  function beginDrag(index: number, event: PointerEvent) {
     const entry = items[index];
     if (!entry) return;
     if (!pane.selected.has(entry.name)) pane.select(index);
     suppressClickUntil = performance.now() + 400;
-    void dnd.start(ops.selectedPaths(pane));
+    dnd.begin(ops.selectedPaths(pane), event);
   }
 
   function onRowPointerDown(event: PointerEvent, index: number) {

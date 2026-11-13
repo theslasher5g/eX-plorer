@@ -31,7 +31,7 @@ export function createItemActions(getPane: () => Pane, getItems: () => Entry[]) 
     if (!entry) return;
     if (!pane.selected.has(entry.name)) pane.select(index);
     suppressClickUntil = performance.now() + 400;
-    void dnd.start(ops.selectedPaths(pane));
+    dnd.begin(ops.selectedPaths(pane), event);
   }
 
   return {

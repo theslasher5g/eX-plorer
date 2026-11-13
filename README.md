@@ -110,7 +110,7 @@ und Thumbnails steht aus.
 | Umbenennen | F2; Eingabe übernimmt, Esc verwirft, Wegklicken übernimmt |
 | Neuer Ordner | Strg+Umschalt+N oder Knopf in der Werkzeugleiste |
 | Verschieben / Kopieren per Maus | Ziehen auf Ordner, Tab, Pfadabschnitt oder Seitenleiste; Strg erzwingt Kopieren, Umschalt Verschieben |
-| In andere Programme ziehen | Ausgewählte Dateien aus der Liste ziehen |
+| In andere Programme ziehen | Ausgewählte Dateien aus dem Fenster hinausziehen (dann übernimmt der echte Windows-Drag) |
 | Datei öffnen | Doppelklick oder Eingabetaste (ausführbare Typen erst nach Rückfrage) |
 | Schnellvorschau | Leertaste; Pfeiltasten wechseln die Datei, Bild auf/ab bei PDF-Seiten, Esc oder Leertaste schließen |
 | Gruppieren | Sortier-Menü → „Gruppieren nach“ (Liste und Kacheln); Klick auf eine Gruppenkopfzeile wählt die Gruppe |
@@ -351,6 +351,14 @@ src/
   Gruppe gilt pro Tab und wird nicht gespeichert. Die Datumsgruppen beziehen
   sich auf den Moment der Berechnung (Mitternacht ändert sie erst beim
   nächsten Sortieren oder Laden).
+- **Ziehen innerhalb der App läuft ohne Windows-Drag:** Solange der Zeiger im
+  Fenster ist, zieht die App selbst (Ziel blau markiert, Hinweis „Nach … verschieben/
+  kopieren“ am Zeiger, Esc bricht ab, Strg kopiert, Umschalt verschiebt). Ein
+  blockierender Windows-Drag hielt die Oberfläche an, sodass das Ziel nicht live
+  markiert wurde. Erst wenn der Zeiger das Fenster verlässt, startet der echte
+  Windows-Drag für andere Programme. Das Verlassen erkennt die App über
+  `mouseout` ohne Ziel; **auf Windows noch nicht gesehen** (insbesondere der
+  Übergang am Fensterrand). Beim Ziehen gibt es kein automatisches Scrollen.
 - **Gummiband-Auswahl:** In Liste, Kacheln und Spalten wählt Ziehen mit der
   Maus auf freier Fläche alles aus, was das Rechteck berührt; Strg oder
   Umschalt behalten die bisherige Auswahl. Am oberen/unteren Rand scrollt die

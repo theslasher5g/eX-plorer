@@ -370,3 +370,10 @@ button {
   border-radius: 3px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
+
+/* Während eines Zugs: kein Textmarkieren, Zeiger als „Ziehen“. */
+html.dragging,
+html.dragging * {
+  user-select: none;
+  cursor: grabbing !important;
+}

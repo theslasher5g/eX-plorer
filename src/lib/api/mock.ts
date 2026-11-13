@@ -360,6 +360,7 @@ const calls = {
   open: [] as unknown[],
   pin: [] as unknown[],
   native: 0,
+  drag: [] as unknown[],
   invoked: [] as number[],
 };
 let menuSession = 0;
@@ -552,7 +553,7 @@ export const mockApi: Api = {
     return { aborted: false, count: names.length, moved: cut, names, cut };
   },
   async startDrag(paths) {
-    void paths;
+    calls.drag.push(paths);
     return 1;
   },
   async watchDirs(paths) {

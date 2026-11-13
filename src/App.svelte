@@ -10,6 +10,7 @@ import { dialogs } from './lib/stores/dialog.svelte';
   import { quicklook } from './lib/stores/quicklook.svelte';
   import { settings } from './lib/stores/settings.svelte';
   import { Tabs } from './lib/stores/tabs.svelte';
+  import DragGhost from './lib/components/DragGhost.svelte';
   import ContextMenu from './lib/components/ContextMenu.svelte';
   import ColumnView from './lib/components/ColumnView.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
@@ -177,6 +178,7 @@ import { dialogs } from './lib/stores/dialog.svelte';
 
 <QuickLook />
 <ContextMenu />
+<DragGhost />
 <SettingsDialog />
 <ConfirmDialog />
 <Toast />

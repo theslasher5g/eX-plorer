@@ -80,6 +80,8 @@ export const de = {
   'open.confirmTitle': '„{name}“ ausführen?',
   'open.confirmBody': 'Dieser Dateityp kann Programme starten. Öffne ihn nur, wenn du der Quelle vertraust.',
   'open.confirm': 'Öffnen',
+  'dnd.moveTo': 'Nach „{name}“ verschieben',
+  'dnd.copyTo': 'Nach „{name}“ kopieren',
   'menu.newTab': 'In neuem Tab öffnen',
   'menu.more': 'Weitere Optionen …',
 
