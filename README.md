@@ -99,7 +99,7 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
 | OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
 | Netzwerk | Eintrag „Netzlaufwerke“ in der Seitenleiste, oder `\\server\freigabe` in die Pfadleiste tippen |
-| Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge) |
+| Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge); „Weitere Optionen …“ zeigt das Windows-Menü |
 
 ## Aufbau
 
@@ -217,13 +217,23 @@ src/
   testen: Strg+C im Explorer und Strg+V hier (und umgekehrt), Dateien in den
   Explorer und aus ihm ziehen, Rechtsklick (erscheint z. B. 7-Zip?), Icons und
   Schnellvorschau in einem Ordner mit vielen Bildern.
-- **Kontextmenü:** Es erscheint das klassische Windows-Menü, wie unter „Weitere
-  Optionen anzeigen“ in Windows 11; Einträge moderner Paket-Apps, die nur im
-  neuen Menü stehen, fehlen teilweise. Ausschneiden, Kopieren, Einfügen,
-  Löschen, Umbenennen und Öffnen führt die App selbst aus (damit Rückfragen
-  und Anzeige stimmen), alles andere die Shell. Das Menü öffnet an der
-  Mausposition; über die Menütaste ausgelöst erscheint es dort, wo der Zeiger
-  steht. „Neu“-Einträge der leeren Fläche legen Dateien an, wählen sie aber
+- **Kontextmenü (eigene Darstellung):** Windows baut das klassische Menü auf
+  (wie unter „Weitere Optionen anzeigen“ in Windows 11, also mit 7-Zip, Git,
+  „Senden an“ usw.), aber die App zeigt es nicht an: Das Backend liest Text,
+  Symbol, Häkchen, Untermenüs und Kürzel aus, die Oberfläche zeichnet sie im
+  Stil der App (Hell/Dunkel, runde Ecken; Maus und Tastatur: Pfeile, Rechts/Links
+  für Untermenüs, Eingabe, Esc). Ein Klick führt den Befehl über Windows aus;
+  Untermenüs werden erst beim Aufklappen geladen. Eigene Einträge sind nicht
+  darstellbar, wenn sie sich nur selbst zeichnen („owner-drawn“, ohne Text oder
+  mit Rückruf-Symbol); dafür gibt es unten **„Weitere Optionen …“**, das das
+  echte Windows-Menü an der Mausposition zeigt. Ausschneiden, Kopieren,
+  Einfügen, Löschen, Umbenennen und Öffnen führt die App selbst aus (damit
+  Rückfragen und Anzeige stimmen), alles andere die Shell. Das Menü öffnet an
+  der Mausposition. Einträge moderner Paket-Apps, die nur im neuen Menü stehen,
+  fehlen teilweise. **Noch nicht auf echtem Windows gesehen:** Darstellung der
+  Symbole (Alphakanal), Untermenüs bestimmter Erweiterungen und die Reihenfolge
+  der Einträge sollten beim ersten Test geprüft werden. „Neu“-Einträge der
+  leeren Fläche legen Dateien an, wählen sie aber
   nicht zum Umbenennen aus.
 - **Icons:** Dateien zeigen das Windows-Icon bzw. Thumbnail (32 px, nur
   sichtbare Zeilen, drei Arbeits-Threads), solange es geladen wird oder wenn

@@ -8,6 +8,8 @@ import type {
   ClipboardFiles,
   Entry,
   ListSummary,
+  MenuItem,
+  MenuOpened,
   MenuOutcome,
   NetDrive,
   OpenResult,
@@ -55,8 +57,12 @@ export const tauriApi: Api = {
   previewInfo: (path) => invoke<PreviewInfo>('preview_info', { path }),
   previewBytes: (path) => invoke<ArrayBuffer>('preview_bytes', { path }),
   previewText: (path) => invoke<TextContent>('preview_text', { path }),
-  contextMenu: (paths, folder, newTabLabel, extras) =>
-    invoke<MenuOutcome>('context_menu', { paths, folder, newTabLabel, extras }),
+  menuOpen: (paths, folder, newTabLabel, extras) =>
+    invoke<MenuOpened>('menu_open', { paths, folder, newTabLabel, extras }),
+  menuSubmenu: (session, path) => invoke<MenuItem[]>('menu_submenu', { session, path }),
+  menuInvoke: (session, id) => invoke<MenuOutcome>('menu_invoke', { session, id }),
+  menuNative: (session) => invoke<MenuOutcome>('menu_native', { session }),
+  menuClose: (session) => invoke<void>('menu_close', { session }),
   onedriveSetPinned: (paths, pinned) => invoke<number>('onedrive_set_pinned', { paths, pinned }),
   openItem: (path, confirmed) => invoke<OpenResult>('open_item', { path, confirmed }),
   treeScan(args, onChunk) {

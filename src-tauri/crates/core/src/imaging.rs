@@ -70,6 +70,33 @@ pub fn encode_png(width: u32, height: u32, bgra: &[u8]) -> Result<Vec<u8>, Image
     Ok(out)
 }
 
+/// Kodiert Bytes als Base64 (Standard-Alphabet, mit Auffüllung).
+pub fn to_base64(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
+        out.push(char::from(TABLE[(n >> 18) as usize & 63]));
+        out.push(char::from(TABLE[(n >> 12) as usize & 63]));
+        out.push(if chunk.len() > 1 {
+            char::from(TABLE[(n >> 6) as usize & 63])
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            char::from(TABLE[n as usize & 63])
+        } else {
+            '='
+        });
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,5 +150,14 @@ mod tests {
         assert!(encode_png(0, 1, &[]).is_err());
         assert!(encode_png(2, 2, &[0; 4]).is_err());
         assert!(encode_png(MAX_DIMENSION + 1, 1, &[]).is_err());
+    }
+
+    #[test]
+    fn base64_matches_reference_vectors() {
+        assert_eq!(to_base64(b""), "");
+        assert_eq!(to_base64(b"f"), "Zg==");
+        assert_eq!(to_base64(b"fo"), "Zm8=");
+        assert_eq!(to_base64(b"foo"), "Zm9v");
+        assert_eq!(to_base64(b"foobar"), "Zm9vYmFy");
     }
 }

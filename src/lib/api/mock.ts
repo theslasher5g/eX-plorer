@@ -5,7 +5,8 @@ import type {
   ClipboardFiles,
   DragDropEvent,
   Entry,
-  MenuOutcome,
+  MenuItem,
+  MenuOpened,
   PreviewInfo,
   NetDrive,
   Reachability,
@@ -311,14 +312,63 @@ function demoPdf(title: string): ArrayBuffer {
   return new TextEncoder().encode(out).buffer as ArrayBuffer;
 }
 
+function mi(id: number, label: string, position: number, extra: Partial<MenuItem> = {}): MenuItem {
+  return { position, id, separator: false, label, shortcut: null, disabled: false, checked: false, default: false, submenu: false, icon: null, ...extra };
+}
+
+const sep = (position: number): MenuItem => ({ ...mi(0, '', position), separator: true, disabled: true });
+
+/** Ein Menü, wie Windows es etwa liefert (Demo). */
+function demoMenu(onItems: boolean, newTabLabel: string | null, extras: { id: number; label: string }[]): MenuItem[] {
+  const out: MenuItem[] = [];
+  let pos = 0;
+  const add = (item: (position: number) => MenuItem) => out.push(item(pos++));
+  if (onItems) {
+    add((p) => mi(1, 'Öffnen', p, { default: true }));
+    if (newTabLabel) add((p) => mi(0x7000, newTabLabel, p));
+    for (const extra of extras) add((p) => mi(extra.id, extra.label, p));
+    add((p) => mi(10, 'Mit Visual Studio öffnen', p, { icon: PIXEL }));
+    add(sep);
+    add((p) => mi(11, 'Zugriff gewähren auf', p, { submenu: true }));
+    add((p) => mi(12, 'Senden an', p, { submenu: true }));
+    add(sep);
+    add((p) => mi(2, 'Ausschneiden', p, { shortcut: 'Strg+X' }));
+    add((p) => mi(3, 'Kopieren', p, { shortcut: 'Strg+C' }));
+    add((p) => mi(4, 'Einfügen', p, { shortcut: 'Strg+V', disabled: true }));
+    add(sep);
+    add((p) => mi(5, 'Umbenennen', p, { shortcut: 'F2' }));
+    add((p) => mi(6, 'Löschen', p, { shortcut: 'Entf' }));
+    add(sep);
+    add((p) => mi(7, 'Eigenschaften', p));
+  } else {
+    add((p) => mi(4, 'Einfügen', p, { shortcut: 'Strg+V' }));
+    add(sep);
+    add((p) => mi(13, 'Neu', p, { submenu: true }));
+    add(sep);
+    add((p) => mi(7, 'Eigenschaften', p));
+  }
+  return out;
+}
+
 const RISKY = ['exe', 'bat', 'cmd', 'msi', 'ps1', 'lnk', 'js'];
-const calls = { menu: [] as unknown[], open: [] as unknown[], pin: [] as unknown[] };
-let nextMenu: MenuOutcome = { kind: 'dismissed' };
+/** 1×1-PNG als Menüsymbol in der Demo. */
+const PIXEL =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+const calls = {
+  menu: [] as unknown[],
+  open: [] as unknown[],
+  pin: [] as unknown[],
+  native: 0,
+  invoked: [] as number[],
+};
+let menuSession = 0;
+let menuItems: MenuItem[] = [];
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   Object.assign(window, {
     __mockCalls: calls,
-    __mockMenuNext: (outcome: MenuOutcome) => (nextMenu = outcome),
+    __mockMenuNative: () => calls.native,
   });
 }
 
@@ -621,12 +671,28 @@ export const mockApi: Api = {
     changed(...paths.map((p) => parentOf(norm(p))));
     return paths.length;
   },
-  async contextMenu(paths, folder, newTabLabel, extras) {
+  async menuOpen(paths, folder, newTabLabel, extras) {
     calls.menu.push({ paths, folder, newTabLabel, extras });
-    const outcome = nextMenu;
-    nextMenu = { kind: 'dismissed' };
-    return outcome;
+    menuItems = demoMenu(paths.length > 0, newTabLabel, extras);
+    return { session: ++menuSession, items: menuItems } satisfies MenuOpened;
   },
+  async menuSubmenu(_session, path) {
+    return menuItems.find((i) => i.position === path[0])?.id === 12
+      ? [mi(40, 'Desktop (Verknüpfung erstellen)', 0), mi(41, 'Dokumente', 1), mi(42, 'Zip-komprimierter Ordner', 2)]
+      : [mi(50, 'Zu Archiv hinzufügen …', 0), mi(51, 'Hier entpacken', 1)];
+  },
+  async menuInvoke(_session, id) {
+    calls.invoked.push(id);
+    const verbs: Record<number, string> = { 1: 'open', 2: 'cut', 3: 'copy', 4: 'paste', 5: 'rename', 6: 'delete' };
+    if (id === 0x7000) return { kind: 'newTab' };
+    if (id >= 0x7001) return { kind: 'extra', id };
+    return verbs[id] ? { kind: 'verb', verb: verbs[id] } : { kind: 'done' };
+  },
+  async menuNative() {
+    calls.native++;
+    return { kind: 'dismissed' };
+  },
+  async menuClose() {},
   async openItem(path, confirmed) {
     calls.open.push({ path, confirmed });
     const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();

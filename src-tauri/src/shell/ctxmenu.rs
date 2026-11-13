@@ -6,18 +6,26 @@
 //! Nachrichten für Untermenüs (`IContextMenu2/3`) landen am richtigen Ort,
 //! und Dialoge der Shell (z. B. „Eigenschaften“) behalten ihre Schleife.
 //!
+//! Das Menü wird **nicht** von Windows angezeigt: Das Backend baut es auf,
+//! liest die Einträge aus (Text, Symbol, Untermenüs, Häkchen) und gibt sie als
+//! Daten an die Oberfläche, die es im eigenen Stil zeichnet. Ein Klick führt
+//! den Befehl über `IContextMenu` aus. „Weitere Optionen“ zeigt als Rückfall
+//! das native Windows-Menü (für Erweiterungen, die sich selbst zeichnen).
+//!
 //! Befehle, die die App selbst besser kann (Ausschneiden, Kopieren, Einfügen,
 //! Löschen, Umbenennen, Öffnen), werden nicht von der Shell ausgeführt,
 //! sondern als Verb an die Oberfläche zurückgegeben.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::mem::size_of;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
+use explorer_core::imaging::to_base64;
 use explorer_core::path::ValidPath;
 use explorer_core::CoreError;
+use serde::Serialize;
 use windows::core::{w, Interface, HSTRING, PCSTR, PCWSTR, PSTR};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -28,12 +36,15 @@ use windows::Win32::UI::Shell::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DispatchMessageW, GetCursorPos,
-    GetMenuItemCount, GetMenuStringW, GetMessageW, InsertMenuW, PostMessageW, RegisterClassW,
-    SetForegroundWindow, TrackPopupMenuEx, TranslateMessage, HMENU, MF_BYPOSITION, MF_STRING, MSG,
+    GetMenuItemCount, GetMenuItemInfoW, GetMenuStringW, GetMessageW, GetSubMenu, InsertMenuW,
+    PostMessageW, RegisterClassW, SetForegroundWindow, TrackPopupMenuEx, TranslateMessage, HMENU,
+    MENUITEMINFOW, MFS_CHECKED, MFS_DEFAULT, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR,
+    MF_BYPOSITION, MF_STRING, MIIM_BITMAP, MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_SUBMENU, MSG,
     SW_SHOWNORMAL, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP, WM_DRAWITEM, WM_INITMENUPOPUP,
     WM_MEASUREITEM, WM_MENUCHAR, WM_NULL, WNDCLASSW, WS_EX_TOOLWINDOW, WS_POPUP,
 };
 
+use super::images;
 use super::items::{item, to_core};
 use super::keys;
 
@@ -64,14 +75,63 @@ pub struct Extra {
     pub skip_if: Vec<String>,
 }
 
-pub struct Request {
-    pub target: Target,
-    /// Hauptfenster; erhält danach wieder den Vordergrund.
-    pub owner: isize,
-    /// Beschriftung für „In neuem Tab öffnen“; `None` lässt den Eintrag weg.
-    pub new_tab_label: Option<String>,
-    pub extras: Vec<Extra>,
-    reply: Sender<Result<Outcome, CoreError>>,
+/// Ein Eintrag des Menüs, wie ihn die Oberfläche zeichnet.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuItem {
+    /// Position in der Menüebene von Windows (für Untermenüs maßgeblich).
+    pub position: u32,
+    pub id: u32,
+    pub separator: bool,
+    pub label: String,
+    /// Tastenkürzel-Text (hinter dem Tabulator), z. B. „Strg+C“.
+    pub shortcut: Option<String>,
+    pub disabled: bool,
+    pub checked: bool,
+    /// Standardbefehl (fett).
+    pub default: bool,
+    pub submenu: bool,
+    /// Symbol als Base64-kodiertes PNG.
+    pub icon: Option<String>,
+}
+
+pub enum Command {
+    Open {
+        target: Target,
+        /// Hauptfenster; erhält danach wieder den Vordergrund.
+        owner: isize,
+        /// Beschriftung für „In neuem Tab öffnen“; `None` lässt den Eintrag weg.
+        new_tab_label: Option<String>,
+        extras: Vec<Extra>,
+    },
+    /// Untermenü unter dem Positionspfad ab der obersten Ebene.
+    Submenu {
+        session: u32,
+        path: Vec<u32>,
+    },
+    Invoke {
+        session: u32,
+        id: u32,
+    },
+    /// Zeigt das native Windows-Menü derselben Sitzung.
+    Native {
+        session: u32,
+    },
+    Close {
+        session: u32,
+    },
+}
+
+pub enum Reply {
+    Menu { session: u32, items: Vec<MenuItem> },
+    Items(Vec<MenuItem>),
+    Outcome(Outcome),
+    Closed,
+}
+
+struct Request {
+    command: Command,
+    reply: Sender<Result<Reply, CoreError>>,
 }
 
 #[derive(Debug)]
@@ -98,9 +158,21 @@ enum Handler {
     V3(IContextMenu3),
 }
 
+/// Das aktuell offene Menü (höchstens eines), samt allem, was es braucht.
+struct Session {
+    id: u32,
+    menu: IContextMenu,
+    hmenu: MenuGuard,
+    extras: Vec<u32>,
+    has_new_tab: bool,
+    owner: isize,
+}
+
 thread_local! {
     static QUEUE: RefCell<Option<Queue>> = const { RefCell::new(None) };
     static CURRENT: RefCell<Option<Handler>> = const { RefCell::new(None) };
+    static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
+    static NEXT_SESSION: Cell<u32> = const { Cell::new(1) };
 }
 
 fn host() -> Option<&'static Host> {
@@ -179,7 +251,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             });
             if let Some(request) = request {
                 let reply = request.reply.clone();
-                let _ = reply.send(process(hwnd, request));
+                let _ = reply.send(process(hwnd, request.command));
             }
             LRESULT(0)
         }
@@ -306,8 +378,159 @@ fn menu_texts(hmenu: HMENU) -> Vec<String> {
     }
 }
 
-fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
-    let menu = context_menu(&request.target, hwnd)?;
+/// Hält Position und Schalter eines Menüeintrags fest.
+const MAX_ITEMS_PER_MENU: i32 = 300;
+const MAX_DEPTH: usize = 4;
+
+fn clean_label(raw: &str) -> (String, Option<String>) {
+    let mut parts = raw.splitn(2, '\t');
+    let text = parts.next().unwrap_or_default();
+    let shortcut = parts
+        .next()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned);
+    // „&“ markiert den Zugriffsbuchstaben, „&&“ ist ein echtes „&“.
+    let mut label = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '&' {
+            if chars.peek() == Some(&'&') {
+                label.push('&');
+                chars.next();
+            }
+        } else {
+            label.push(c);
+        }
+    }
+    (label.trim().to_owned(), shortcut)
+}
+
+/// Liest die Einträge einer Menüebene aus.
+fn read_items(hmenu: HMENU) -> Vec<MenuItem> {
+    let mut items = Vec::new();
+    // SAFETY: gültiges Menü auf dem Menü-Thread; alle Puffer sind lokal und ausreichend groß.
+    unsafe {
+        let count = GetMenuItemCount(Some(hmenu)).clamp(0, MAX_ITEMS_PER_MENU);
+        for position in 0..count as u32 {
+            let mut info = MENUITEMINFOW {
+                cbSize: size_of::<MENUITEMINFOW>() as u32,
+                fMask: MIIM_ID | MIIM_FTYPE | MIIM_STATE | MIIM_SUBMENU | MIIM_BITMAP,
+                ..Default::default()
+            };
+            if GetMenuItemInfoW(hmenu, position, true, &raw mut info).is_err() {
+                continue;
+            }
+            if info.fType.0 & MFT_SEPARATOR.0 != 0 {
+                items.push(MenuItem {
+                    position,
+                    id: 0,
+                    separator: true,
+                    label: String::new(),
+                    shortcut: None,
+                    disabled: true,
+                    checked: false,
+                    default: false,
+                    submenu: false,
+                    icon: None,
+                });
+                continue;
+            }
+            let mut buffer = [0u16; 256];
+            let len = GetMenuStringW(hmenu, position, Some(&mut buffer), MF_BYPOSITION);
+            let (label, shortcut) =
+                clean_label(&String::from_utf16_lossy(&buffer[..len.max(0) as usize]));
+            // Einträge, die sich nur selbst zeichnen und keinen Text liefern, lassen sich nicht darstellen.
+            if label.is_empty() {
+                continue;
+            }
+            // Pseudo-Handles (HBMMENU_*, Rückruf) sind keine Bitmaps.
+            let icon = (info.hbmpItem.0 as isize > 11)
+                .then(|| images::menu_icon_png(info.hbmpItem))
+                .flatten()
+                .map(|png| to_base64(&png));
+            items.push(MenuItem {
+                position,
+                id: info.wID,
+                separator: false,
+                label,
+                shortcut,
+                disabled: info.fState.0 & (MFS_DISABLED.0 | MFS_GRAYED.0) != 0,
+                checked: info.fState.0 & MFS_CHECKED.0 != 0,
+                default: info.fState.0 & MFS_DEFAULT.0 != 0,
+                submenu: !info.hSubMenu.is_invalid(),
+                icon,
+            });
+        }
+    }
+    items
+}
+
+/// Gibt es in diesem Menü (auch in Untermenüs) einen Befehl mit dieser Kennung?
+fn has_command(hmenu: HMENU, id: u32, depth: usize) -> bool {
+    // SAFETY: gültiges Menü auf dem Menü-Thread.
+    unsafe {
+        for position in 0..GetMenuItemCount(Some(hmenu)).clamp(0, MAX_ITEMS_PER_MENU) as u32 {
+            let mut info = MENUITEMINFOW {
+                cbSize: size_of::<MENUITEMINFOW>() as u32,
+                fMask: MIIM_ID | MIIM_SUBMENU,
+                ..Default::default()
+            };
+            if GetMenuItemInfoW(hmenu, position, true, &raw mut info).is_err() {
+                continue;
+            }
+            if info.hSubMenu.is_invalid() {
+                if info.wID == id {
+                    return true;
+                }
+            } else if depth < MAX_DEPTH && has_command(info.hSubMenu, id, depth + 1) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn close_session() {
+    CURRENT.with(|c| *c.borrow_mut() = None);
+    SESSION.with(|s| *s.borrow_mut() = None);
+}
+
+/// Alles, was zum Ausführen gebraucht wird, ohne den Zugriff auf `SESSION`
+/// zu halten (die Shell darf dabei Nachrichten verarbeiten).
+struct Parts {
+    menu: IContextMenu,
+    hmenu: HMENU,
+    extras: Vec<u32>,
+    has_new_tab: bool,
+    owner: isize,
+}
+
+fn parts(session: u32) -> Result<Parts, CoreError> {
+    SESSION.with(|s| {
+        s.borrow()
+            .as_ref()
+            .filter(|s| s.id == session)
+            .map(|s| Parts {
+                menu: s.menu.clone(),
+                hmenu: s.hmenu.0,
+                extras: s.extras.clone(),
+                has_new_tab: s.has_new_tab,
+                owner: s.owner,
+            })
+            .ok_or(CoreError::NotFound)
+    })
+}
+
+fn open(
+    hwnd: HWND,
+    target: &Target,
+    owner: isize,
+    new_tab_label: Option<&str>,
+    extras: &[Extra],
+) -> Result<Reply, CoreError> {
+    close_session();
+    let menu = context_menu(target, hwnd)?;
     let handler = menu
         .cast::<IContextMenu3>()
         .map(Handler::V3)
@@ -317,7 +540,7 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
     // SAFETY: Das Menü wird vom Guard zerstört; alle Handles bleiben auf diesem Thread.
     unsafe {
         let hmenu = CreatePopupMenu().map_err(|e| to_core(&e))?;
-        let _guard = MenuGuard(hmenu);
+        let guard = MenuGuard(hmenu);
 
         let mut flags = CMF_NORMAL | CMF_CANRENAME;
         if keys::modifiers().shift {
@@ -327,8 +550,8 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
             .ok()
             .map_err(|e| to_core(&e))?;
 
-        if let Some(label) = &request.new_tab_label {
-            let text = HSTRING::from(label.as_str());
+        if let Some(label) = new_tab_label {
+            let text = HSTRING::from(label);
             let _ = InsertMenuW(
                 hmenu,
                 1,
@@ -340,12 +563,9 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
 
         // Einträge der App direkt hinter „Öffnen“ (und „In neuem Tab öffnen“).
         let existing = menu_texts(hmenu);
-        let mut position = if request.new_tab_label.is_some() {
-            2
-        } else {
-            1
-        };
-        for extra in &request.extras {
+        let mut position = if new_tab_label.is_some() { 2 } else { 1 };
+        let mut added = Vec::new();
+        for extra in extras {
             let known = std::iter::once(&extra.label)
                 .chain(&extra.skip_if)
                 .any(|text| existing.contains(&normalize(text)));
@@ -360,16 +580,104 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
                 extra.id as usize,
                 PCWSTR(text.as_ptr()),
             );
+            added.push(extra.id);
             position += 1;
         }
 
+        let items = read_items(hmenu);
+        let id = NEXT_SESSION.with(|n| {
+            let id = n.get();
+            n.set(id.wrapping_add(1).max(1));
+            id
+        });
         CURRENT.with(|c| *c.borrow_mut() = handler);
-        let mut at = POINT::default();
+        SESSION.with(|s| {
+            *s.borrow_mut() = Some(Session {
+                id,
+                menu,
+                hmenu: guard,
+                extras: added,
+                has_new_tab: new_tab_label.is_some(),
+                owner,
+            });
+        });
+        Ok(Reply::Menu { session: id, items })
+    }
+}
+
+/// Befüllt (lazy, wie Windows beim Aufklappen) und liest ein Untermenü.
+fn submenu(session: u32, path: &[u32]) -> Result<Vec<MenuItem>, CoreError> {
+    if path.is_empty() || path.len() > MAX_DEPTH {
+        return Err(CoreError::Unsupported);
+    }
+    let mut hmenu = parts(session)?.hmenu;
+    for &position in path {
+        // SAFETY: gültiges Menü auf dem Menü-Thread; ungültige Positionen liefern ein leeres Handle.
+        let sub = unsafe { GetSubMenu(hmenu, position as i32) };
+        if sub.is_invalid() {
+            return Err(CoreError::NotFound);
+        }
+        // Wie beim Aufklappen: die Erweiterung füllt ihr Untermenü jetzt.
+        let _ = forward(
+            WM_INITMENUPOPUP,
+            WPARAM(sub.0 as usize),
+            LPARAM(position as isize & 0xFFFF),
+        );
+        hmenu = sub;
+    }
+    Ok(read_items(hmenu))
+}
+
+/// Führt den gewählten Befehl aus und beendet die Sitzung.
+fn run_command(hwnd: HWND, parts: &Parts, id: u32, at: POINT) -> Result<Outcome, CoreError> {
+    if id == ID_NEW_TAB && parts.has_new_tab {
+        return Ok(Outcome::NewTab);
+    }
+    if parts.extras.contains(&id) {
+        return Ok(Outcome::Extra(id));
+    }
+    // Nur Befehle, die das Menü wirklich enthält.
+    if !(ID_FIRST..=ID_LAST).contains(&id) || !has_command(parts.hmenu, id, 0) {
+        return Err(CoreError::Unsupported);
+    }
+    let offset = id - ID_FIRST;
+    if let Some(verb) = verb_of(&parts.menu, offset) {
+        if APP_VERBS.contains(&verb.as_str()) {
+            return Ok(Outcome::Verb(verb));
+        }
+    }
+    invoke(&parts.menu, hwnd, offset, at)?;
+    Ok(Outcome::Done)
+}
+
+fn cursor() -> POINT {
+    let mut at = POINT::default();
+    // SAFETY: gültiger Ausgabezeiger.
+    unsafe {
         let _ = GetCursorPos(&raw mut at);
+    }
+    at
+}
+
+fn restore_foreground(owner: isize) {
+    if owner != 0 {
+        // SAFETY: Fensterhandle des Hauptfensters; ein ungültiges Handle ist folgenlos.
+        unsafe {
+            let _ = SetForegroundWindow(HWND(owner as *mut _));
+        }
+    }
+}
+
+/// Rückfall: das Windows-Menü selbst anzeigen und die Wahl auswerten.
+fn native(hwnd: HWND, session: u32) -> Result<Outcome, CoreError> {
+    let parts = parts(session)?;
+    let at = cursor();
+    // SAFETY: Menü und Fenster gehören diesem Thread.
+    let command = unsafe {
         // Ohne Vordergrund schließt das Menü beim Wegklicken nicht.
         let _ = SetForegroundWindow(hwnd);
         let command = TrackPopupMenuEx(
-            hmenu,
+            parts.hmenu,
             (TPM_RETURNCMD | TPM_RIGHTBUTTON).0,
             at.x,
             at.y,
@@ -377,53 +685,55 @@ fn process(hwnd: HWND, request: Request) -> Result<Outcome, CoreError> {
             None,
         );
         let _ = PostMessageW(Some(hwnd), WM_NULL, WPARAM(0), LPARAM(0));
-        CURRENT.with(|c| *c.borrow_mut() = None);
+        command
+    };
+    restore_foreground(parts.owner);
+    let id = command.0 as u32;
+    if id == 0 {
+        return Ok(Outcome::Dismissed);
+    }
+    run_command(hwnd, &parts, id, at)
+}
 
-        if request.owner != 0 {
-            let _ = SetForegroundWindow(HWND(request.owner as *mut _));
+fn process(hwnd: HWND, command: Command) -> Result<Reply, CoreError> {
+    match command {
+        Command::Open {
+            target,
+            owner,
+            new_tab_label,
+            extras,
+        } => open(hwnd, &target, owner, new_tab_label.as_deref(), &extras),
+        Command::Submenu { session, path } => submenu(session, &path).map(Reply::Items),
+        Command::Invoke { session, id } => {
+            let parts = parts(session)?;
+            let result = run_command(hwnd, &parts, id, cursor());
+            restore_foreground(parts.owner);
+            close_session();
+            result.map(Reply::Outcome)
         }
-
-        let id = command.0 as u32;
-        if id == 0 {
-            return Ok(Outcome::Dismissed);
+        Command::Native { session } => {
+            let result = native(hwnd, session);
+            close_session();
+            result.map(Reply::Outcome)
         }
-        if id == ID_NEW_TAB {
-            return Ok(Outcome::NewTab);
-        }
-        if request.extras.iter().any(|extra| extra.id == id) {
-            return Ok(Outcome::Extra(id));
-        }
-        let offset = id - ID_FIRST;
-        if let Some(verb) = verb_of(&menu, offset) {
-            if APP_VERBS.contains(&verb.as_str()) {
-                return Ok(Outcome::Verb(verb));
+        Command::Close { session } => {
+            if SESSION.with(|s| s.borrow().as_ref().is_some_and(|s| s.id == session)) {
+                close_session();
             }
+            Ok(Reply::Closed)
         }
-        invoke(&menu, hwnd, offset, at)?;
-        Ok(Outcome::Done)
     }
 }
 
-/// Zeigt das Menü an der Mauszeigerposition und wartet auf die Auswahl.
+/// Schickt einen Befehl an den Menü-Thread und wartet auf die Antwort.
 /// Blockiert den aufrufenden Worker-Thread, nicht die Oberfläche.
-pub fn show(
-    target: Target,
-    owner: isize,
-    new_tab_label: Option<String>,
-    extras: Vec<Extra>,
-) -> Result<Outcome, CoreError> {
+pub fn send(command: Command) -> Result<Reply, CoreError> {
     let host = host().ok_or(CoreError::Unsupported)?;
     let (reply, wait) = channel();
     host.queue
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .push_back(Request {
-            target,
-            owner,
-            new_tab_label,
-            extras,
-            reply,
-        });
+        .push_back(Request { command, reply });
     // SAFETY: Das Fenster lebt für die Prozesslaufzeit; PostMessage ist thread-sicher.
     unsafe {
         PostMessageW(

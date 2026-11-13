@@ -81,6 +81,7 @@ export const de = {
   'open.confirmBody': 'Dieser Dateityp kann Programme starten. Öffne ihn nur, wenn du der Quelle vertraust.',
   'open.confirm': 'Öffnen',
   'menu.newTab': 'In neuem Tab öffnen',
+  'menu.more': 'Weitere Optionen …',
 
   'view.label': 'Ansicht',
   'view.list': 'Liste (Strg+1)',

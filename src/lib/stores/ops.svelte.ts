@@ -9,6 +9,7 @@ import {
 } from '../api';
 import { errorText, itemsText, t } from '../i18n';
 import { joinPath, parentPath, samePath, splitPath } from '../paths';
+import { contextmenu } from './contextmenu.svelte';
 import { dialogs } from './dialog.svelte';
 import { onedrive } from './onedrive.svelte';
 import type { Pane } from './pane.svelte';
@@ -237,12 +238,12 @@ class Ops {
               { id: MENU_FREE, label: t('onedrive.free'), skipIf: ['Free up space'] },
             ]
           : [];
-      const outcome = await (await getApi()).contextMenu(
+      const outcome = await contextmenu.show({
         paths,
-        paths.length === 0 ? pane.path : null,
-        folder ? t('menu.newTab') : null,
+        folder: paths.length === 0 ? pane.path : null,
+        newTabLabel: folder ? t('menu.newTab') : null,
         extras,
-      );
+      });
       switch (outcome.kind) {
         case 'newTab':
           if (folder) this.#tabs?.open(joinPath(pane.path, folder.name));
@@ -278,7 +279,12 @@ class Ops {
   /** Natives Kontextmenü für eine Zeile der Baumansicht. */
   async treeContextMenu(pane: Pane, path: string, name: string, isDir: boolean): Promise<void> {
     try {
-      const outcome = await (await getApi()).contextMenu([path], null, isDir ? t('menu.newTab') : null, []);
+      const outcome = await contextmenu.show({
+        paths: [path],
+        folder: null,
+        newTabLabel: isDir ? t('menu.newTab') : null,
+        extras: [],
+      });
       if (outcome.kind === 'newTab') this.#tabs?.open(path);
       else if (outcome.kind === 'done') void pane.tree.start(pane.tree.root);
       else if (outcome.kind === 'verb' && outcome.verb === 'open') {

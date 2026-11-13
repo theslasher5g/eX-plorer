@@ -2,13 +2,15 @@
   import { onMount } from 'svelte';
   import { getApi, type SidebarData } from './lib/api';
   import { samePath } from './lib/paths';
-  import { dialogs } from './lib/stores/dialog.svelte';
+  import { contextmenu } from './lib/stores/contextmenu.svelte';
+import { dialogs } from './lib/stores/dialog.svelte';
   import { dnd } from './lib/stores/dnd.svelte';
   import { onedrive } from './lib/stores/onedrive.svelte';
   import { ops } from './lib/stores/ops.svelte';
   import { quicklook } from './lib/stores/quicklook.svelte';
   import { settings } from './lib/stores/settings.svelte';
   import { Tabs } from './lib/stores/tabs.svelte';
+  import ContextMenu from './lib/components/ContextMenu.svelte';
   import ColumnView from './lib/components/ColumnView.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
   import FileList from './lib/components/FileList.svelte';
@@ -83,7 +85,7 @@
 
   function onKeydown(event: KeyboardEvent) {
     // Solange ein Dialog offen ist, gehört ihm die Tastatur.
-    if (dialogs.confirmState || quicklook.isOpen || settings.dialog) return;
+    if (dialogs.confirmState || quicklook.isOpen || settings.dialog || contextmenu.isOpen) return;
     const { altKey, ctrlKey, shiftKey } = event;
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     let handled = true;
@@ -128,7 +130,12 @@
   }
 </script>
 
-<svelte:window onkeydown={onKeydown} onmouseup={onMouseup} oncontextmenu={onContextmenu} />
+<svelte:window
+  onkeydown={onKeydown}
+  onmouseup={onMouseup}
+  oncontextmenu={onContextmenu}
+  oncontextmenucapture={(event) => (contextmenu.point = { x: event.clientX, y: event.clientY })}
+/>
 
 <div class="win">
   <TitleBar {tabs} onnewtab={newTab} />
@@ -155,6 +162,7 @@
 </div>
 
 <QuickLook />
+<ContextMenu />
 <SettingsDialog />
 <ConfirmDialog />
 <Toast />

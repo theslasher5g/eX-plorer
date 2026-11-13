@@ -107,7 +107,30 @@ export type MenuOutcome =
   | { kind: 'newTab' }
   | { kind: 'extra'; id: number };
 
-/** Zusätzlicher Eintrag der App im nativen Kontextmenü. */
+/** Ein Eintrag des Kontextmenüs, wie Windows ihn liefert. */
+export interface MenuItem {
+  /** Position in der Menüebene (für Untermenüs maßgeblich). */
+  position: number;
+  id: number;
+  separator: boolean;
+  label: string;
+  /** Tastenkürzel-Text, z. B. „Strg+C“. */
+  shortcut: string | null;
+  disabled: boolean;
+  checked: boolean;
+  /** Standardbefehl (fett). */
+  default: boolean;
+  submenu: boolean;
+  /** Symbol als Base64-kodiertes PNG. */
+  icon: string | null;
+}
+
+export interface MenuOpened {
+  session: number;
+  items: MenuItem[];
+}
+
+/** Zusätzlicher Eintrag der App im Kontextmenü. */
 export interface MenuExtra {
   /** Eigene Kennung im Bereich 0x7001–0x70FF. */
   id: number;
@@ -230,13 +253,23 @@ export interface Api {
   previewInfo(path: string): Promise<PreviewInfo>;
   previewBytes(path: string): Promise<ArrayBuffer>;
   previewText(path: string): Promise<TextContent>;
-  /** Zeigt das native Windows-Kontextmenü an der Mausposition. */
-  contextMenu(
+  /**
+   * Baut das Windows-Kontextmenü auf und liefert seine Einträge; die Oberfläche
+   * zeigt es selbst. Es ist immer höchstens eine Sitzung offen.
+   */
+  menuOpen(
     paths: string[],
     folder: string | null,
     newTabLabel: string | null,
     extras: MenuExtra[],
-  ): Promise<MenuOutcome>;
+  ): Promise<MenuOpened>;
+  /** Einträge eines Untermenüs; `path` sind die Positionen ab der obersten Ebene. */
+  menuSubmenu(session: number, path: number[]): Promise<MenuItem[]>;
+  /** Führt einen Eintrag aus und schließt die Sitzung. */
+  menuInvoke(session: number, id: number): Promise<MenuOutcome>;
+  /** „Weitere Optionen“: das native Windows-Menü derselben Sitzung. */
+  menuNative(session: number): Promise<MenuOutcome>;
+  menuClose(session: number): Promise<void>;
   /** „Immer auf diesem Gerät behalten“ (true) bzw. „Speicherplatz freigeben“ (false). */
   onedriveSetPinned(paths: string[], pinned: boolean): Promise<number>;
   openItem(path: string, confirmed: boolean): Promise<OpenResult>;

@@ -38,12 +38,12 @@ impl Drop for Bitmap {
     }
 }
 
-fn to_bgra(bitmap: &Bitmap) -> Result<(u32, u32, Vec<u8>), CoreError> {
+fn to_bgra(bitmap: HBITMAP) -> Result<(u32, u32, Vec<u8>), CoreError> {
     let mut info = BITMAP::default();
     // SAFETY: gültiges Bitmap-Handle; `info` ist ein ausreichend großer Ausgabepuffer.
     let read = unsafe {
         GetObjectW(
-            HGDIOBJ(bitmap.0 .0),
+            HGDIOBJ(bitmap.0),
             size_of::<BITMAP>() as i32,
             Some((&raw mut info).cast()),
         )
@@ -78,7 +78,7 @@ fn to_bgra(bitmap: &Bitmap) -> Result<(u32, u32, Vec<u8>), CoreError> {
         let hdc = GetDC(None);
         let lines = GetDIBits(
             hdc,
-            bitmap.0,
+            bitmap,
             0,
             height,
             Some(pixels.as_mut_ptr().cast()),
@@ -118,8 +118,22 @@ pub fn render_png(path: &ValidPath, size: u32) -> Result<Vec<u8>, CoreError> {
     .map_err(|e| to_core(&e))?;
     let bitmap = Bitmap(hbitmap);
 
-    let (width, height, mut pixels) = to_bgra(&bitmap)?;
+    let (width, height, mut pixels) = to_bgra(bitmap.0)?;
     // Windows liefert Bitmaps mit Alphakanal vormultipliziert.
     imaging::finalize_bgra(&mut pixels, true);
     imaging::encode_png(width, height, &pixels).map_err(|_| CoreError::Unsupported)
+}
+
+/// Größtes Menü-Symbol, das übernommen wird (Pixel je Seite).
+const MENU_ICON_MAX: u32 = 64;
+
+/// Wandelt das Bitmap eines Menüeintrags in ein PNG. Das Bitmap gehört dem
+/// Menü bzw. der Erweiterung und wird hier nicht freigegeben.
+pub fn menu_icon_png(bitmap: HBITMAP) -> Option<Vec<u8>> {
+    let (width, height, mut pixels) = to_bgra(bitmap).ok()?;
+    if width > MENU_ICON_MAX || height > MENU_ICON_MAX {
+        return None;
+    }
+    imaging::finalize_bgra(&mut pixels, true);
+    imaging::encode_png(width, height, &pixels).ok()
 }
