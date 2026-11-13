@@ -3,10 +3,10 @@
 Ein moderner Datei-Explorer für Windows 10/11 im Stil des macOS Finder.
 Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
-> **Stand: Phase 5 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
+> **Stand: Phase 6 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
 > Dateioperationen, Drag & Drop, Live-Aktualisierung, Windows-Icons, natives
 > Kontextmenü, Schnellvorschau, Listen-, Kachel- und Baumansicht mit Limits,
-> Einstellungen und die OneDrive-Integration. Netzwerklaufwerke folgen (siehe
+> Einstellungen, OneDrive und Netzlaufwerke. Es fehlt der Feinschliff (siehe
 > [Fahrplan](#fahrplan)).
 
 Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
@@ -97,6 +97,7 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
 | Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
 | OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
+| Netzwerk | Eintrag „Netzlaufwerke“ in der Seitenleiste, oder `\\server\freigabe` in die Pfadleiste tippen |
 | Kontextmenü | Rechtsklick auf eine Datei, einen Ordner oder die leere Fläche (Umschalt+Rechtsklick zeigt erweiterte Einträge) |
 
 ## Aufbau
@@ -113,6 +114,8 @@ src-tauri/
     src/imaging.rs    BGRA → PNG für Icons und Thumbnails
     src/exec.rs       Welche Dateitypen beim Öffnen eine Rückfrage brauchen
     src/attrs.rs      Cloud-Platzhalter, Sync-Zustand, Pin-Attribute
+    src/network.rs    Fehlerklassifizierung, Prüfung von Servereingaben
+    src/timeout.rs    Zeitlimit und Abkühlzeit für blockierende Netzwerkaufrufe
     src/onedrive.rs   OneDrive-Konten zusammenführen (Registry, Umgebung)
     src/watch.rs      Ordner-Watcher (notify), gebündelte Meldungen
     src/winerr.rs     HRESULT/Win32-Fehlercodes → Fehlerarten
@@ -121,7 +124,8 @@ src-tauri/
     shell/            Windows-Shell-Aufrufe: bekannte Ordner, Laufwerke,
                       IFileOperation, Zwischenablage (CF_HDROP), OLE-Drag, Tastenstatus,
                       Icons/Thumbnails, Kontextmenü (eigener Thread), Datei öffnen,
-                      OneDrive (Konten, Pin/Unpin), Registry (nur lesend)
+                      OneDrive (Konten, Pin/Unpin), Registry (nur lesend),
+                      Netzwerk (Laufwerke, Anmeldung, Freigaben)
     protocol.rs       URI-Schema shellimg (Icons/Thumbnails als PNG)
     workers.rs        Arbeits-Pool für Bildanfragen (neueste zuerst, begrenzte Warteschlange)
     state.rs          Fenstermaterial (Mica)
@@ -160,6 +164,18 @@ src/
   OneDrive-Client. Die Registry wird nur gelesen, und das Setzen ist auf
   Pfade innerhalb der erkannten OneDrive-Ordner beschränkt (nicht auf deren
   Wurzel).
+- **Netzwerkzugriffe haben ein Zeitlimit und blockieren nie.** Jeder Zugriff
+  läuft in einem eigenen Thread; nach 4 s (Prüfung), 8 s (Freigaben) bzw. 10 s
+  (Ordner) bekommt die Oberfläche „nicht erreichbar“. Ein zeitüberschrittener
+  Server wird 15 s lang als hängend geführt, weitere Anfragen scheitern dann
+  sofort, statt hängende Threads aufzustauen. Auf Netzpfaden gibt es keine
+  Icons, Thumbnails und keine automatische Tiefensuche (der Baum liest eine
+  Ebene).
+- **Anmeldung über Windows, nicht über die App.** Die App hat keine
+  Passwortfelder und speichert nichts: `WNetAddConnection3W` öffnet den
+  Windows-Dialog und legt die Daten auf Wunsch in der
+  Anmeldeinformationsverwaltung ab. Das war deine Vorgabe und weicht bewusst
+  vom Anmeldedialog im Design ab, der Felder in der App zeigt.
 - **Cloud-Platzhalter werden nie gelesen.** Für „nur in der Cloud“-Dateien
   (OneDrive) erzeugt das Backend weder Icons noch Thumbnails noch Vorschauen;
   die Attribute werden vorher per Metadaten geprüft. Dasselbe gilt für Icons
@@ -192,7 +208,7 @@ src/
 
 ## Bekannte Einschränkungen
 
-- **Phase 2 bis 5 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
+- **Phase 2 bis 6 wurden auf echtem Windows noch nicht getestet.** Dateioperationen,
   Zwischenablage, Drag in andere Programme, Icon-Gewinnung, das native
   Kontextmenü und das Öffnen von Dateien greifen tief in Windows ein und lassen
   sich nur dort prüfen. Kompiliert und statisch geprüft sind sie, die Abläufe
@@ -224,8 +240,27 @@ src/
   eingebettet sind, werden evtl. falsch dargestellt; die CMaps liegen nicht bei.
   Die App wächst durch pdf.js um rund 4 MB, geladen wird es erst beim ersten PDF.
 - **Dateien auf Netzlaufwerken** werden für die Vorschau gelesen (auf
-  ausdrückliche Handlung); ein Timeout für nicht erreichbare Server folgt mit
-  der Netzwerk-Phase.
+  ausdrückliche Handlung); dafür gibt es noch kein Zeitlimit, ebenso nicht
+  für Dateioperationen (Kopieren, Löschen). Dort zeigt Windows seinen eigenen
+  Fortschritts- und Fehlerdialog.
+- **Netzwerk:**
+  - Es gibt keine automatische Suche nach Rechnern im Netz, denn Windows
+    kann das selbst kaum noch zuverlässig. Die Liste „Freigaben im Netzwerk“
+    zeigt die Server, die du hinzufügst (gespeichert in den Einstellungen);
+    zugeordnete Laufwerke erscheinen automatisch.
+  - Freigaben werden mit `NetShareEnum` gelistet, Verwaltungsfreigaben
+    (`C$`, `IPC$`) bleiben ausgeblendet. Manche Server verweigern das
+    Auflisten, dann hilft nur das direkte Eintippen von `\\server\freigabe`.
+  - „Anmelden“ an einem Server verbindet `\\server\IPC$`; das schaltet die
+    Freigabe-Liste frei, ordnet aber keinen Laufwerksbuchstaben zu. Neue
+    Laufwerksbuchstaben vergibt die App nicht (das macht der Explorer unter
+    „Netzlaufwerk verbinden“); ein bestehendes Laufwerk lässt sich neu
+    verbinden.
+  - Bei Windows-Fehlern, die ich nicht zuordnen kann, steht „nicht
+    erreichbar“. „Zugriff verweigert“ an der Wurzel einer Freigabe gilt als
+    „Anmeldung erforderlich“.
+  - Der Menü-Thread des Kontextmenüs ist einzeln: Hängt ein Rechtsklick auf
+    einem toten Netzpfad, warten weitere Menüs, bis er zurückkehrt.
 - **Fortschritt und Konflikte zeigt Windows an**, nicht die App: Bei großen
   Vorgängen erscheint der gewohnte Windows-Dialog, ebenso bei Namenskonflikten.
   Eine eigene Fortschrittskarte gibt es nicht.
@@ -291,7 +326,8 @@ src/
   Hintergrund. Wegen der eigenen Titelleiste fehlt das Snap-Layout-Flyout beim
   Überfahren von „Maximieren“ (Win+Z und Ziehen an den Rand funktionieren).
 - **Getestet** wurde bisher: Kernlogik per Unit-Tests (u. a. Pfadvalidierung,
-  Operationsplanung, Sync-Zustand und OneDrive-Konten, Watcher, Baum-Limits mit 100.000 Dateien in einem Ordner
+  Operationsplanung, Sync-Zustand und OneDrive-Konten, Netzwerk-Fehlercodes,
+  Servereingaben und das Zeitlimit mit Abkühlzeit, Watcher, Baum-Limits mit 100.000 Dateien in einem Ordner
   und einer Link-Endlosschleife), Windows-Code per Cross-Kompilierprüfung unter
   Linux und in der CI auf Windows, Oberfläche im Browser gegen das
   Demo-Backend (auch mit 100.000 Einträgen). Ein Test der fertigen App auf
@@ -304,7 +340,7 @@ src/
 3. ✅ Icons, Thumbnails, Kontextmenü, Schnellvorschau, Datei öffnen
 4. ✅ Baumansicht mit Limits, Abbruch und Export; dazu Kachelansicht und Einstellungen
 5. ✅ OneDrive-Integration
-6. Netzwerklaufwerke
+6. ✅ Netzlaufwerke
 7. Feinschliff: Performance, Tests, Sicherheitsprüfung, Installer
 
 Noch keiner Phase zugeordnet, aber in den Anforderungen und im Design
