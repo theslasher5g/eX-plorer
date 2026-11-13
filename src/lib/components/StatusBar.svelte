@@ -6,15 +6,23 @@
 
   let { pane }: { pane: Pane } = $props();
 
+  // In der Spaltenansicht gilt die Anzeige der aktiven Spalte.
+  const target = $derived(pane.view === 'columns' ? pane.columns.active : pane);
+
   const text = $derived.by(() => {
     if (pane.isNetwork) return '';
     if (pane.error?.code === 'access_denied') return t('status.denied');
     if (pane.view === 'tree') return t('tree.rows', { count: formatCount(pane.tree.rows.length) });
-    const count = pane.visible.length;
-    const parts = [count === 1 ? t('status.item') : t('status.items', { count: formatCount(count) })];
-    if (pane.selected.size > 0) {
-      parts.push(t('status.selected', { count: formatCount(pane.selected.size) }));
-      if (pane.selectedBytes > 0) parts.push(formatSize(pane.selectedBytes));
+    const count = target.visible.length;
+    const cols = pane.view === 'columns';
+    const parts = [
+      count === 1
+        ? t(cols ? 'status.colItem' : 'status.item')
+        : t(cols ? 'status.colItems' : 'status.items', { count: formatCount(count) }),
+    ];
+    if (target.selected.size > 0) {
+      parts.push(t('status.selected', { count: formatCount(target.selected.size) }));
+      if (target.selectedBytes > 0) parts.push(formatSize(target.selectedBytes));
     }
     return parts.join(', ');
   });
@@ -27,8 +35,8 @@
   <span class="sp"></span>
   {#if pane.view === 'tree'}
     <span>{t('tree.statusLimits', { depth: settings.value.treeDepth, perDir: formatCount(settings.value.treePerDir) })}</span>
-  {:else if pane.hiddenCount > 0}
-    <span>{t('status.hidden', { count: formatCount(pane.hiddenCount) })}</span>
+  {:else if target.hiddenCount > 0}
+    <span>{t('status.hidden', { count: formatCount(target.hiddenCount) })}</span>
   {/if}
   {#if pane.view === 'grid'}
     <span class="zoom">

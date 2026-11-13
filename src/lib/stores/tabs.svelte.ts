@@ -7,6 +7,17 @@ export class Tabs {
 
   readonly current = $derived(this.panes[this.active]);
 
+  /** Jeder gerade angezeigte Ordner aller Tabs (bei Spaltenansicht mehrere je Tab). */
+  get livePanes(): Pane[] {
+    return this.panes.flatMap((p) => p.livePanes);
+  }
+
+  /** Der Ordner, auf dem Dateioperationen des aktiven Tabs arbeiten. */
+  get target(): Pane {
+    const pane = this.current;
+    return pane.view === 'columns' ? pane.columns.active : pane;
+  }
+
   /** Öffnet `path` in einem neuen Tab und aktiviert ihn. */
   open(path: string): void {
     const pane = new Pane();

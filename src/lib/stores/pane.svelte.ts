@@ -1,11 +1,12 @@
 import { getApi, toApiError, type ApiError, type Entry } from '../api';
 import { locale } from '../i18n';
 import { extension, joinPath, NETWORK_PATH, parentPath, samePath, splitPath } from '../paths';
+import { ColumnsState } from './columns.svelte';
 import { settings } from './settings.svelte';
 import { TreeState } from './tree.svelte';
 
 export type SortKey = 'name' | 'modified' | 'type' | 'size';
-export type ViewMode = 'list' | 'grid' | 'tree';
+export type ViewMode = 'list' | 'grid' | 'columns' | 'tree';
 
 const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
 
@@ -28,6 +29,15 @@ export class Pane {
   view = $state<ViewMode>('list');
   /** Zustand der Baumansicht dieses Tabs. */
   readonly tree = new TreeState();
+  /** Zustand der Spaltenansicht dieses Tabs. */
+  readonly columns = new ColumnsState(this);
+  /** Gesetzt bei Spalten der Spaltenansicht: der Pane des Tabs, zu dem sie gehören. */
+  host: Pane | null = null;
+
+  /** Alle Ordner, die dieser Tab gerade anzeigt (bei Spalten: jede Spalte). */
+  get livePanes(): Pane[] {
+    return this.view === 'columns' ? this.columns.all : [this];
+  }
 
   /** Versteckte Elemente anzeigen: eine globale Einstellung. */
   get showHidden(): boolean {
@@ -76,14 +86,16 @@ export class Pane {
     this.showHidden ? 0 : this.entries.reduce((n, e) => n + (e.hidden ? 1 : 0), 0),
   );
 
-  readonly visible = $derived.by(() => {
+  readonly visible: Entry[] = $derived.by(() => {
     const needle = this.filter.trim().toLowerCase();
     const showHidden = this.showHidden;
     const list = this.entries.filter(
       (e) => (showHidden || !e.hidden) && (!needle || e.name.toLowerCase().includes(needle)),
     );
-    const direction = this.sortAsc ? 1 : -1;
-    const key = this.sortKey;
+    // Spalten sortieren wie der Tab, zu dem sie gehören.
+    const sorter: Pane = this.host ?? this;
+    const direction = sorter.sortAsc ? 1 : -1;
+    const key = sorter.sortKey;
     return list.sort((a, b) => {
       // Ordner stehen unabhängig von der Sortierrichtung oben.
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
@@ -136,9 +148,9 @@ export class Pane {
     return this.path ? this.#load(this.path, true) : Promise.resolve();
   }
 
-  /** Öffnet einen Eintrag. Dateien werden in dieser Phase nicht geöffnet. */
+  /** Öffnet einen Ordner (in Spalten: im Tab, zu dem die Spalte gehört). */
   open(entry: Entry): void {
-    if (entry.isDir) void this.navigate(joinPath(this.path, entry.name));
+    if (entry.isDir) void (this.host ?? this).navigate(joinPath(this.path, entry.name));
   }
 
   async #load(target: string, keepSelection = false): Promise<void> {

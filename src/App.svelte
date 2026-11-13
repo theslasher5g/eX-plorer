@@ -9,6 +9,7 @@
   import { quicklook } from './lib/stores/quicklook.svelte';
   import { settings } from './lib/stores/settings.svelte';
   import { Tabs } from './lib/stores/tabs.svelte';
+  import ColumnView from './lib/components/ColumnView.svelte';
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte';
   import FileList from './lib/components/FileList.svelte';
   import NetworkPage from './lib/components/NetworkPage.svelte';
@@ -49,7 +50,7 @@
       // Änderungen im Dateisystem (auch von anderen Programmen) nachladen.
       keep(
         await api.onDirChanged((dir) => {
-          for (const p of tabs.panes) if (samePath(p.path, dir)) void p.refresh();
+          for (const p of tabs.livePanes) if (samePath(p.path, dir)) void p.refresh();
         }),
       );
       keep(await dnd.init());
@@ -68,7 +69,7 @@
 
   // Die Ordner aller Tabs beobachten lassen.
   $effect(() => {
-    const paths = tabs.panes.map((p) => p.path).filter(Boolean);
+    const paths = [...new Set(tabs.livePanes.map((p) => p.path).filter(Boolean))];
     void getApi().then((api) => api.watchDirs(paths)).catch(() => {});
   });
 
@@ -96,7 +97,8 @@
     else if (ctrlKey && key === ',') settings.open();
     else if (ctrlKey && key === '1') pane.view = 'list';
     else if (ctrlKey && key === '2') pane.view = 'grid';
-    else if (ctrlKey && key === '3') pane.view = 'tree';
+    else if (ctrlKey && key === '3') pane.view = 'columns';
+    else if (ctrlKey && key === '4') pane.view = 'tree';
     else if (ctrlKey && key === 'w') tabs.close(tabs.active);
     else if (ctrlKey && key === 'Tab') tabs.cycle(shiftKey ? -1 : 1);
     else if (isTextInput(event.target)) handled = false;
@@ -107,7 +109,7 @@
     else if (ctrlKey && key === 'c') void ops.copy(false);
     else if (ctrlKey && key === 'x') void ops.copy(true);
     else if (ctrlKey && key === 'v') void ops.paste();
-    else if (key === ' ') quicklook.open(pane);
+    else if (key === ' ') quicklook.open(tabs.target);
     else if (key === 'F2') ops.startRename();
     else if (key === 'Delete') void ops.remove(shiftKey);
     else handled = false;
@@ -141,6 +143,8 @@
           <TreeView {pane} />
         {:else if pane.view === 'grid'}
           <TileGrid {pane} />
+        {:else if pane.view === 'columns'}
+          <ColumnView {pane} />
         {:else}
           <FileList {pane} />
         {/if}

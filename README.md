@@ -5,7 +5,7 @@ Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 
 > **Stand: Phase 6 von 7.** Fenster, Theme, Seitenleiste, Tabs, Navigation,
 > Dateioperationen, Drag & Drop, Live-Aktualisierung, Windows-Icons, natives
-> Kontextmenü, Schnellvorschau, Listen-, Kachel- und Baumansicht mit Limits,
+> Kontextmenü, Schnellvorschau, Listen-, Kachel-, Spalten- und Baumansicht mit Limits,
 > Einstellungen, OneDrive und Netzlaufwerke. Es fehlt der Feinschliff (siehe
 > [Fahrplan](#fahrplan)).
 
@@ -93,7 +93,8 @@ Dieselben Schritte laufen in GitHub Actions auf `windows-latest`
 | In andere Programme ziehen | Ausgewählte Dateien aus der Liste ziehen |
 | Datei öffnen | Doppelklick oder Eingabetaste (ausführbare Typen erst nach Rückfrage) |
 | Schnellvorschau | Leertaste; Pfeiltasten wechseln die Datei, Bild auf/ab bei PDF-Seiten, Esc oder Leertaste schließen |
-| Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Baum, oder der Umschalter in der Werkzeugleiste |
+| Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Spalten, Strg+4 Baum, oder der Umschalter in der Werkzeugleiste |
+| Spalten bedienen | Klick auf einen Ordner öffnet ihn rechts daneben, Klick auf eine Datei zeigt die Vorschau; Pfeil auf/ab wählt, Pfeil rechts/links wechselt die Spalte, Eingabetaste bzw. Doppelklick öffnet (Ordner: der Tab wechselt dorthin) |
 | Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
 | Einstellungen | Strg+, oder der Eintrag unten in der Seitenleiste |
 | OneDrive: Behalten / Freigeben | Rechtsklick auf Dateien oder Ordner im OneDrive-Ordner: „Immer auf diesem Gerät behalten“ bzw. „Speicherplatz freigeben“ |
@@ -287,7 +288,16 @@ src/
   Millionen Einträgen einige Sekunden dauern, ist aber abbrechbar.
 - **Kachelansicht:** Thumbnails kommen von Windows in 256 px. Ordner zeigen das
   gezeichnete Symbol, keine Inhaltsvorschau.
-- **Es fehlen** die Spaltenansicht und die Gruppierung aus den Anforderungen
+- **Spaltenansicht (wie im Finder):** Jede Spalte ist ein eigener Ordner mit
+  eigener Auswahl; Kopieren, Ausschneiden, Einfügen, Löschen, Umbenennen, Neuer
+  Ordner, Kontextmenü, Ziehen und Schnellvorschau wirken auf die aktive Spalte
+  (die mit der kräftigen Markierung). Sortierung und versteckte Dateien gelten
+  für alle Spalten, die Suche nur für die erste. Die Vorschau rechts zeigt
+  Symbol bzw. Thumbnail, Art, Größe und Datum; Cloud-Dateien bekommen kein
+  Thumbnail. Die Breadcrumb zeigt den Ordner der ersten Spalte, nicht den
+  der tiefsten. Die Spaltenbreite ist fest. Alle offenen Spalten werden
+  live beobachtet (insgesamt höchstens 64 Ordner über alle Tabs).
+- **Es fehlen** die Gruppierung aus den Anforderungen
   sowie der Netzwerk-Eintrag der Seitenleiste. Die Einstellungen umfassen
   bisher versteckte Dateien, Kachelgröße und die Baum-Limits; ein manueller
   Hell/Dunkel-Schalter fehlt (die App folgt Windows).
@@ -343,5 +353,5 @@ src/
 6. ✅ Netzlaufwerke
 7. Feinschliff: Performance, Tests, Sicherheitsprüfung, Installer
 
-Noch keiner Phase zugeordnet, aber in den Anforderungen und im Design
-vorhanden: Spaltenansicht und Gruppierung.
+Noch keiner Phase zugeordnet, aber in den Anforderungen vorhanden: Gruppierung.
+Die Spaltenansicht ist vor Phase 7 dazugekommen.

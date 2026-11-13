@@ -40,7 +40,7 @@ class Ops {
   }
 
   get pane(): Pane | null {
-    return this.#tabs?.current ?? null;
+    return this.#tabs?.target ?? null;
   }
 
   isCut(path: string): boolean {
@@ -66,7 +66,7 @@ class Ops {
 
   /** Lädt die Ansichten neu, die einen der Ordner zeigen. */
   #refreshDirs(dirs: string[]): void {
-    for (const pane of this.#tabs?.panes ?? []) {
+    for (const pane of this.#tabs?.livePanes ?? []) {
       if (dirs.some((dir) => samePath(dir, pane.path))) void pane.refresh();
     }
   }
@@ -195,7 +195,7 @@ class Ops {
   async open(pane: Pane, entry: Entry): Promise<void> {
     const path = joinPath(pane.path, entry.name);
     if (entry.isDir) {
-      void pane.navigate(path);
+      void (pane.host ?? pane).navigate(path);
       return;
     }
     await this.openFile(path, entry.name);

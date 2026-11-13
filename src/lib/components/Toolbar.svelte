@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeft, ArrowRight, ArrowUp, FolderPlus, LayoutGrid, List, ListTree, Search, X } from '@lucide/svelte';
+  import { ArrowLeft, ArrowRight, ArrowUp, Columns3, FolderPlus, LayoutGrid, List, ListTree, Search, X } from '@lucide/svelte';
   import type { Component } from 'svelte';
   import { t } from '../i18n';
   import { ops } from '../stores/ops.svelte';
@@ -9,9 +9,10 @@
 
   let { pane }: { pane: Pane } = $props();
 
-  const views: { id: ViewMode; icon: Component; label: 'view.list' | 'view.grid' | 'view.tree' }[] = [
+  const views: { id: ViewMode; icon: Component; label: 'view.list' | 'view.grid' | 'view.columns' | 'view.tree' }[] = [
     { id: 'list', icon: List, label: 'view.list' },
     { id: 'grid', icon: LayoutGrid, label: 'view.grid' },
+    { id: 'columns', icon: Columns3, label: 'view.columns' },
     { id: 'tree', icon: ListTree, label: 'view.tree' },
   ];
 
