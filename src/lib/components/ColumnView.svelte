@@ -4,6 +4,7 @@
   import { t } from '../i18n';
   import { ops } from '../stores/ops.svelte';
   import type { Pane } from '../stores/pane.svelte';
+  import { handleTypeAhead } from '../typeahead';
   import ColumnList from './ColumnList.svelte';
   import ColumnPreview from './ColumnPreview.svelte';
   import ListState from './ListState.svelte';
@@ -41,6 +42,7 @@
   });
 
   function onKey(column: Pane, event: KeyboardEvent, page: number) {
+    if (handleTypeAhead(event, column) !== null) return;
     if (event.altKey) return;
     const items = column.visible;
     const cursor = column.cursor;

@@ -2,6 +2,7 @@
   import { displayName, leafName, locationOf } from '../names';
   import { ChevronDown } from '@lucide/svelte';
   import { Lasso } from '../lasso.svelte';
+  import { handleTypeAhead } from '../typeahead';
   import type { Entry } from '../api';
   import { typeLabel } from '../filetypes';
   import { formatDate, formatDateLong, formatSize } from '../format';
@@ -185,6 +186,11 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    const typed = handleTypeAhead(event, pane);
+    if (typed !== null) {
+      if (typed >= 0) reveal(pane.cursor);
+      return;
+    }
     const page = Math.max(1, Math.floor((height - HEAD) / ROW) - 1);
     const cursor = pane.cursor;
     let target: number | null = null;

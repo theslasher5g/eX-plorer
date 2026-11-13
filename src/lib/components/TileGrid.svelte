@@ -2,6 +2,7 @@
   import { displayName, leafName } from '../names';
   import { formatSize } from '../format';
   import { Lasso } from '../lasso.svelte';
+  import { handleTypeAhead } from '../typeahead';
   import { t } from '../i18n';
   import { createItemActions } from '../itemActions';
   import { joinPath } from '../paths';
@@ -172,6 +173,11 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    const typed = handleTypeAhead(event, pane);
+    if (typed !== null) {
+      if (typed >= 0) reveal(pane.cursor);
+      return;
+    }
     const cursor = pane.cursor;
     const page = Math.max(1, Math.floor(height / rowH)) * cols;
     let target: number | null = null;

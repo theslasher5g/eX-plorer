@@ -3,6 +3,7 @@ import { dateBoundaries, groupOf, type Group, type GroupInfo, type GroupKey } fr
 import { locale } from '../i18n';
 import { extension, joinPath, NETWORK_PATH, parentPath, samePath, splitPath } from '../paths';
 import { ColumnsState } from './columns.svelte';
+import { displayName } from '../names';
 import { matchesName } from '../search';
 import { SearchState } from './search.svelte';
 import { settings } from './settings.svelte';
@@ -10,6 +11,9 @@ import { TreeState } from './tree.svelte';
 
 export type SortKey = 'name' | 'modified' | 'type' | 'size';
 export type ViewMode = 'list' | 'grid' | 'columns' | 'tree';
+
+/** So lange nach dem letzten Buchstaben gilt die Eingabe als zusammengehörig. */
+const TYPE_RESET_MS = 900;
 
 const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
 
@@ -64,6 +68,10 @@ export class Pane {
   selected = $state.raw<ReadonlySet<string>>(new Set());
   /** Index des Fokus-Eintrags in `visible`, -1 wenn keiner. */
   cursor = $state(-1);
+
+  // Tippsuche: die zuletzt getippten Buchstaben und wann.
+  #typed = '';
+  #typedAt = 0;
 
   #history = $state.raw<string[]>([]);
   #index = $state(-1);
@@ -334,6 +342,38 @@ export class Pane {
       this.cursor = indices[indices.length - 1];
       this.#anchor = indices[0];
     }
+  }
+
+  /** Läuft gerade eine Tippeingabe (dann gehört auch das Leerzeichen dazu)? */
+  get typing(): boolean {
+    return this.#typed.length > 0 && performance.now() - this.#typedAt < TYPE_RESET_MS;
+  }
+
+  /**
+   * Tippsuche wie im Explorer: Die ersten Buchstaben eines Namens markieren den
+   * ersten passenden Eintrag; derselbe Buchstabe mehrfach springt zum nächsten.
+   * Liefert den Index des markierten Eintrags oder -1.
+   */
+  typeAhead(char: string): number {
+    const now = performance.now();
+    this.#typed = now - this.#typedAt > TYPE_RESET_MS ? char : this.#typed + char;
+    this.#typedAt = now;
+    const items = this.visible;
+    if (items.length === 0) return -1;
+    const typed = this.#typed.toLocaleLowerCase(locale);
+    // „aaa“ heißt: zum nächsten Eintrag mit „a“.
+    const cycle = typed.length > 1 && [...typed].every((c) => c === typed[0]);
+    const needle = cycle ? typed[0] : typed;
+    // Der erste Buchstabe einer neuen Eingabe beginnt hinter dem Fokus, damit wiederholtes Tippen weiterspringt.
+    const from = this.cursor < 0 ? 0 : this.cursor + (typed.length === 1 || cycle ? 1 : 0);
+    for (let step = 0; step < items.length; step++) {
+      const index = (from + step) % items.length;
+      if (displayName(items[index]).toLocaleLowerCase(locale).startsWith(needle)) {
+        this.select(index);
+        return index;
+      }
+    }
+    return -1;
   }
 
   /** Auswahl per Maus: einfach, Strg (umschalten), Umschalt (Bereich). */
