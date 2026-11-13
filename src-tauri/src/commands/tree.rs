@@ -15,9 +15,6 @@ use crate::error::AppError;
 use crate::shell::places;
 use crate::state::AppState;
 
-/// So lange wartet ein Scan auf einem Netzwerkpfad auf eine Antwort.
-const REMOTE_LIMIT: std::time::Duration = std::time::Duration::from_secs(15);
-
 /// Schutz gegen absurde Offsets vom Frontend.
 const MAX_OFFSET: usize = 5_000_000;
 
@@ -87,6 +84,7 @@ pub async fn tree_scan(
     let offset = args.offset.min(MAX_OFFSET);
     let show_hidden = args.show_hidden;
     let guard = state.net.clone();
+    let tree_limit = state.tree_limit();
     blocking(move || {
         // Auf Netzlaufwerken nie automatisch in die Tiefe; Aufklappen lädt gezielt nach.
         let remote = places::is_remote(&root);
@@ -113,7 +111,7 @@ pub async fn tree_scan(
         };
         let summary = if remote {
             // Toter Server: nach dem Zeitlimit abbrechen statt zu hängen.
-            let result = guard.run(&key, REMOTE_LIMIT, COOL_DOWN, scan);
+            let result = guard.run(&key, tree_limit, COOL_DOWN, scan);
             if result.is_err() {
                 cancel.store(true, Ordering::Relaxed);
             }

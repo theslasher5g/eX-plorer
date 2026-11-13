@@ -144,7 +144,21 @@ export interface OpenResult {
   needsConfirm: boolean;
 }
 
+/** Erscheinungsbild: folgt Windows oder fest hell/dunkel. */
+export type Theme = 'auto' | 'light' | 'dark';
+
+/** Ansicht, mit der neue Tabs beginnen. */
+export type StartView = 'list' | 'grid' | 'columns';
+
 export interface Settings {
+  theme: Theme;
+  /** Dateiendungen hinter dem Namen zeigen. */
+  showExtensions: boolean;
+  /** OneDrive-Statussymbole zeigen. */
+  showSyncStatus: boolean;
+  startView: StartView;
+  /** Zeitlimit für Ordner im Netzwerk in Sekunden. */
+  networkTimeoutSecs: number;
   /** Versteckte und Systemdateien anzeigen. */
   showHidden: boolean;
   treeDepth: number;
@@ -226,6 +240,8 @@ export interface ApiError {
 
 export interface WindowControls {
   minimize(): Promise<void>;
+  /** Fenster-Thema (Titelleiste, Mica); `null` folgt Windows. */
+  setTheme(theme: 'light' | 'dark' | null): Promise<void>;
   toggleMaximize(): Promise<void>;
   close(): Promise<void>;
   isMaximized(): Promise<boolean>;

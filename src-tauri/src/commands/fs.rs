@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use explorer_core::listing::{self, Entry};
 use explorer_core::path::validate_path;
 use explorer_core::CoreError;
@@ -15,8 +13,6 @@ use crate::state::AppState;
 
 /// Einträge pro Nachricht ans Frontend.
 const BATCH_SIZE: usize = 2000;
-/// So lange wartet das Auflisten eines Netzwerkordners auf eine Antwort.
-const REMOTE_LIMIT: Duration = Duration::from_secs(10);
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +33,7 @@ pub async fn list_dir(
 ) -> Result<ListSummary, AppError> {
     let valid = validate_path(&path)?;
     let guard = state.net.clone();
+    let dir_limit = state.dir_limit();
     blocking(move || {
         let remote = places::is_remote(&valid);
         let root = valid.root().to_owned();
@@ -50,7 +47,7 @@ pub async fn list_dir(
             })
         };
         let result = if remote {
-            guard.run(&root, REMOTE_LIMIT, COOL_DOWN, list)
+            guard.run(&root, dir_limit, COOL_DOWN, list)
         } else {
             list(&std::sync::atomic::AtomicBool::new(false))
         };

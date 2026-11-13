@@ -1,9 +1,10 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { X } from '@lucide/svelte';
-  import type { Settings } from '../api';
+  import type { Settings, StartView, Theme } from '../api';
   import { formatCount } from '../format';
   import { t, type MessageKey } from '../i18n';
+  import { onedrive } from '../stores/onedrive.svelte';
   import { LIMITS, settings, type SettingsSection } from '../stores/settings.svelte';
 
   type RangeKey = keyof typeof LIMITS;
@@ -11,6 +12,20 @@
   const sections: { id: SettingsSection; label: MessageKey }[] = [
     { id: 'general', label: 'settings.general' },
     { id: 'tree', label: 'settings.tree' },
+    { id: 'onedrive', label: 'settings.onedrive' },
+    { id: 'network', label: 'settings.network' },
+  ];
+
+  const themes: { id: Theme; label: MessageKey }[] = [
+    { id: 'light', label: 'settings.theme.light' },
+    { id: 'dark', label: 'settings.theme.dark' },
+    { id: 'auto', label: 'settings.theme.auto' },
+  ];
+
+  const views: { id: StartView; label: MessageKey }[] = [
+    { id: 'list', label: 'view.listShort' },
+    { id: 'grid', label: 'view.gridShort' },
+    { id: 'columns', label: 'view.columnsShort' },
   ];
 
   const ranges: Record<SettingsSection, { key: RangeKey; label: MessageKey; hint: MessageKey }[]> = {
@@ -20,6 +35,8 @@
       { key: 'treeTotal', label: 'settings.total', hint: 'settings.totalHint' },
       { key: 'treePerDir', label: 'settings.perDir', hint: 'settings.perDirHint' },
     ],
+    onedrive: [],
+    network: [{ key: 'networkTimeoutSecs', label: 'settings.timeout', hint: 'settings.timeoutHint' }],
   };
 
   const section = $derived(settings.dialog);
@@ -44,7 +61,9 @@
 
   function display(key: RangeKey): string {
     const current = value(key);
-    return key === 'tileSize' ? t('settings.px', { value: current }) : formatCount(current);
+    if (key === 'tileSize') return t('settings.px', { value: current });
+    if (key === 'networkTimeoutSecs') return t('settings.sec', { value: current });
+    return formatCount(current);
   }
 
   function percent(key: RangeKey): string {
@@ -72,6 +91,38 @@
     }
   }
 </script>
+
+{#snippet toggle(key: 'showExtensions' | 'showHidden' | 'showSyncStatus', label: MessageKey, hint: MessageKey)}
+  <div class="srow">
+    <div class="lbl">
+      <b id="lbl-{key}">{t(label)}</b>
+      <span>{t(hint)}</span>
+    </div>
+    <button
+      class="sw"
+      role="switch"
+      aria-checked={settings.value[key]}
+      aria-labelledby="lbl-{key}"
+      onclick={() => settings.update({ [key]: !settings.value[key] })}
+    ></button>
+  </div>
+{/snippet}
+
+{#snippet choice<T extends string>(key: string, label: MessageKey, hint: MessageKey, options: { id: T; label: MessageKey }[], current: T, pick: (id: T) => void)}
+  <div class="srow">
+    <div class="lbl">
+      <b id="lbl-{key}">{t(label)}</b>
+      <span>{t(hint)}</span>
+    </div>
+    <div class="choice" role="radiogroup" aria-labelledby="lbl-{key}">
+      {#each options as option (option.id)}
+        <button role="radio" aria-checked={current === option.id} class:on={current === option.id} onclick={() => pick(option.id)}>
+          {t(option.label)}
+        </button>
+      {/each}
+    </div>
+  </div>
+{/snippet}
 
 {#if section}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -104,19 +155,29 @@
 
         <div class="sbody">
           {#if section === 'general'}
+            {@render choice('theme', 'settings.theme', 'settings.themeHint', themes, settings.value.theme, (id) => settings.update({ theme: id }))}
+            {@render toggle('showExtensions', 'settings.extensions', 'settings.extensionsHint')}
+            {@render toggle('showHidden', 'settings.hidden', 'settings.hiddenHint')}
+            {@render choice('startView', 'settings.startView', 'settings.startViewHint', views, settings.value.startView, (id) => settings.update({ startView: id }))}
+          {:else if section === 'onedrive'}
+            {@render toggle('showSyncStatus', 'settings.syncStatus', 'settings.syncStatusHint')}
             <div class="srow">
               <div class="lbl">
-                <b id="lbl-hidden">{t('settings.hidden')}</b>
-                <span>{t('settings.hiddenHint')}</span>
+                <b>{t('settings.odAccounts')}</b>
+                {#if onedrive.accounts.length === 0}
+                  <span>{t('settings.odNone')}</span>
+                {:else}
+                  <ul class="accounts">
+                    {#each onedrive.accounts as account (account.path)}
+                      <li><b>{account.label}</b> <span>{account.email ?? ''}</span><span class="path">{account.path}</span></li>
+                    {/each}
+                  </ul>
+                {/if}
               </div>
-              <button
-                class="sw"
-                role="switch"
-                aria-checked={settings.value.showHidden}
-                aria-labelledby="lbl-hidden"
-                onclick={() => settings.update({ showHidden: !settings.value.showHidden })}
-              ></button>
             </div>
+            <p class="note">{t('settings.odNote')}</p>
+          {:else if section === 'network'}
+            <p class="note">{t('settings.netNote')}</p>
           {/if}
 
           {#each ranges[section] as item (item.key)}
@@ -148,7 +209,7 @@
         </div>
 
         <div class="sfoot">
-          <button class="btn ghost" onclick={() => settings.reset()}>{t('settings.reset')}</button>
+          <button class="btn ghost" onclick={() => section && settings.reset(section)}>{t('settings.reset')}</button>
           <button class="btn pri" onclick={() => settings.close()}>{t('settings.done')}</button>
         </div>
       </div>
@@ -283,6 +344,58 @@
     text-align: right;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
+  }
+
+  .choice {
+    display: flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 10px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+  }
+
+  .choice button {
+    height: 26px;
+    padding: 0 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    transition: background var(--t-hover);
+  }
+
+  .choice button:hover {
+    background: var(--hover);
+  }
+
+  .choice button.on {
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
+  }
+
+  .accounts {
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+  }
+
+  .accounts li b {
+    display: inline;
+  }
+
+  .accounts .path {
+    display: block;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11.5px;
+  }
+
+  .note {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
   }
 
   .sfoot {

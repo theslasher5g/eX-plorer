@@ -1,8 +1,11 @@
-import type { Entry, SyncState } from '../api';
+import { settings } from './settings.svelte';
+import type { Entry, Place, SyncState } from '../api';
 
 /** Die lokalen OneDrive-Ordner (ein Eintrag je Konto) und daraus abgeleitete Hilfen. */
 class OneDrive {
   roots = $state.raw<string[]>([]);
+  /** Erkannte Konten (für die Einstellungen). */
+  accounts = $state.raw<Place[]>([]);
 
   setRoots(paths: string[]): void {
     this.roots = paths;
@@ -24,6 +27,7 @@ class OneDrive {
    * bleiben ohne Status.
    */
   stateOf(entry: Entry, dir: string): SyncState | null {
+    if (!settings.value.showSyncStatus) return null;
     if (entry.sync) return entry.sync;
     if (entry.isDir || entry.hidden || entry.system) return null;
     return this.contains(dir) ? 'syncing' : null;

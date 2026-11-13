@@ -16,13 +16,6 @@
 </script>
 
 <header class="titlebar" data-tauri-drag-region>
-  <div class="appmark" aria-hidden="true" data-tauri-drag-region>
-    <svg width="20" height="20" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="2.2" />
-      <circle cx="12" cy="12" r="3.2" fill="var(--accent)" />
-    </svg>
-  </div>
-
   <div class="tabs" role="tablist" aria-label={t('tabs.label')} data-tauri-drag-region>
     {#each tabs.panes as pane, index (pane.id)}
       <div
@@ -69,19 +62,6 @@
     align-items: flex-end;
     padding-left: 12px;
     gap: 8px;
-  }
-
-  .appmark {
-    width: 28px;
-    height: 36px;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .appmark svg {
-    pointer-events: none;
   }
 
   .tabs {

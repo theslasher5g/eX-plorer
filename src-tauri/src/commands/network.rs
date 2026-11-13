@@ -15,8 +15,6 @@ use crate::shell::network;
 use crate::state::AppState;
 
 /// Wie lange auf eine Antwort gewartet wird.
-const PROBE_LIMIT: Duration = Duration::from_secs(4);
-const SHARES_LIMIT: Duration = Duration::from_secs(8);
 /// So lange scheitern weitere Anfragen an einen hängenden Server sofort.
 pub const COOL_DOWN: Duration = Duration::from_secs(15);
 
@@ -73,10 +71,11 @@ pub async fn network_probe(
 ) -> Result<Reachability, AppError> {
     let valid = validate_path(&path)?;
     let guard = state.net.clone();
+    let probe_limit = state.probe_limit();
     let root = valid.root().to_owned();
     blocking(move || {
         let target = validate_path(&root)?.to_extended();
-        match guard.run(&root, PROBE_LIMIT, COOL_DOWN, move |_| {
+        match guard.run(&root, probe_limit, COOL_DOWN, move |_| {
             Ok(network::probe(&target))
         }) {
             Ok(status) => Ok(status),
@@ -139,9 +138,10 @@ pub async fn network_shares(
     let parsed = parse_server(&server)?;
     let host = parsed.host().to_owned();
     let guard = state.net.clone();
+    let shares_limit = state.shares_limit();
     blocking(move || {
         let key = host.clone();
-        let shares = guard.run(&key, SHARES_LIMIT, COOL_DOWN, move |_| {
+        let shares = guard.run(&key, shares_limit, COOL_DOWN, move |_| {
             network::shares(&host).map(|list| (host, list))
         })?;
         let (host, list) = shares;

@@ -35,6 +35,9 @@ fn main() {
                 watcher: Mutex::new(watcher),
                 scans: Mutex::default(),
                 net: explorer_core::timeout::Guard::new(),
+                net_timeout_secs: std::sync::atomic::AtomicU32::new(
+                    explorer_core::settings::NET_TIMEOUT_DEFAULT,
+                ),
             });
             Ok(())
         })

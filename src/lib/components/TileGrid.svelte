@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { displayName } from '../names';
   import { formatSize } from '../format';
   import { Lasso } from '../lasso.svelte';
   import { t } from '../i18n';
@@ -300,7 +301,7 @@
                   oncancel={() => (pane.renaming = null)}
                 />
               {:else}
-                <span class="tname" title={entry.name}>{entry.name}</span>
+                <span class="tname" title={entry.name}>{displayName(entry)}</span>
               {/if}
               <span class="tmeta">{entry.isDir ? '' : formatSize(entry.size)}</span>
             </div>

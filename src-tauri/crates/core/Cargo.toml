@@ -20,3 +20,4 @@ windows = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_Clo
 
 [dev-dependencies]
 tempfile = "3"
+serde_json = "1"

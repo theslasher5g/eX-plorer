@@ -1,4 +1,5 @@
 import { Pane } from './pane.svelte';
+import { settings } from './settings.svelte';
 
 /** Die offenen Tabs; jeder Tab ist eine eigenständige Ordneransicht. */
 export class Tabs {
@@ -21,6 +22,7 @@ export class Tabs {
   /** Öffnet `path` in einem neuen Tab und aktiviert ihn. */
   open(path: string): void {
     const pane = new Pane();
+    pane.view = settings.value.startView;
     this.panes = [...this.panes, pane];
     this.active = this.panes.length - 1;
     void pane.navigate(path);

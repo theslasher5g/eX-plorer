@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { displayName } from '../names';
   import { ChevronDown } from '@lucide/svelte';
   import { Lasso } from '../lasso.svelte';
   import type { Entry } from '../api';
@@ -315,7 +316,7 @@
                     oncancel={() => (pane.renaming = null)}
                   />
                 {:else}
-                  <span class="nm" title={entry.name}>{entry.name}</span>
+                  <span class="nm" title={entry.name}>{displayName(entry)}</span>
                 {/if}
               </span>
               <span class="c-meta" role="gridcell" title={formatDateLong(entry.modifiedMs)}>

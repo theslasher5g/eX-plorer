@@ -43,12 +43,15 @@ import { dialogs } from './lib/stores/dialog.svelte';
     void (async () => {
       const api = await getApi();
       await settings.load();
+      // Der erste Tab beginnt mit der gewählten Startansicht.
+      pane.view = settings.value.startView;
       const info = await api.appInfo();
       document.documentElement.dataset.material = info.material;
       home = info.homeDir;
       void pane.navigate(home);
       sidebar = await api.sidebar();
       onedrive.setRoots(sidebar.onedrive.map((place) => place.path));
+      onedrive.accounts = sidebar.onedrive;
 
       // Änderungen im Dateisystem (auch von anderen Programmen) nachladen.
       keep(

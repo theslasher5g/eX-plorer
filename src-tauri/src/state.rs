@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use explorer_core::watch::DirWatcher;
 use serde::Serialize;
@@ -26,6 +27,38 @@ pub struct AppState {
     pub scans: Mutex<HashMap<u32, Arc<AtomicBool>>>,
     /// Zeitlimits und Abkühlzeit für Netzwerkzugriffe.
     pub net: explorer_core::timeout::Guard,
+    /// Zeitlimit für Ordner im Netzwerk in Sekunden (aus den Einstellungen).
+    pub net_timeout_secs: AtomicU32,
+}
+
+impl AppState {
+    fn secs(&self) -> u64 {
+        u64::from(self.net_timeout_secs.load(Ordering::Relaxed))
+    }
+
+    pub fn set_net_timeout(&self, secs: u32) {
+        self.net_timeout_secs.store(secs, Ordering::Relaxed);
+    }
+
+    /// Ordner auflisten (Standard 10 s).
+    pub fn dir_limit(&self) -> Duration {
+        Duration::from_secs(self.secs())
+    }
+
+    /// Erreichbarkeitsprüfung (Standard 4 s).
+    pub fn probe_limit(&self) -> Duration {
+        Duration::from_millis(self.secs() * 400)
+    }
+
+    /// Freigaben eines Servers (Standard 8 s).
+    pub fn shares_limit(&self) -> Duration {
+        Duration::from_millis(self.secs() * 800)
+    }
+
+    /// Baum-Scan einer Ebene (Standard 15 s).
+    pub fn tree_limit(&self) -> Duration {
+        Duration::from_millis(self.secs() * 1500)
+    }
 }
 
 /// Aktiviert Mica, wenn das System es unterstützt. Das Fenster ist transparent

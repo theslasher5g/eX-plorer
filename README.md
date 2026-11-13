@@ -12,7 +12,7 @@ Backend in Rust mit Tauri 2, Oberfläche in Svelte 5 + TypeScript.
 > Demo-Daten (siehe [Bekannte Einschränkungen](#bekannte-einschränkungen)).
 
 Das Aussehen folgt dem Design „Lichtung“: Die Tokens (Farben, Radien, Schatten,
-Bewegung) stehen in `src/app.css`, hell und dunkel folgen automatisch dem System.
+Bewegung) stehen in `src/app.css`, hell und dunkel folgen dem System oder lassen sich in den Einstellungen festlegen.
 
 ## Voraussetzungen
 
@@ -366,11 +366,25 @@ src/
   Berühren in der Höhe, das Rechteck muss die Zeile also nicht an ihrem Namen
   treffen. Das Ziehen beginnt nur auf freier Fläche; von einer Zeile aus
   startet wie bisher das Ziehen der Dateien.
-- **Es fehlt:** ein manueller Hell/Dunkel-Schalter (die App folgt Windows).
-  Die Einstellungen umfassen bisher versteckte Dateien, Kachelgröße und die
-  Baum-Limits.
+- **Einstellungen** (vier Bereiche wie im Design, Strg+,): *Darstellung*
+  (Erscheinungsbild Hell / Dunkel / Automatisch, Dateiendungen anzeigen,
+  versteckte Dateien, Startansicht neuer Tabs, Kachelgröße), *Baumansicht*
+  (Tiefe, Einträge gesamt und pro Ordner), *OneDrive* (Sync-Status anzeigen,
+  erkannte Konten) und *Netzwerk* (Zeitlimit 5–60 s). „Standardwerte“ setzt
+  nur den gerade offenen Bereich zurück, nie die Serverliste. Das
+  Erscheinungsbild setzt auch das Fenster-Thema (Titelleiste, Mica); bei
+  „Automatisch“ folgt die App Windows. Ohne Endungen stehen Dateien ohne
+  Endung in der Liste, beim Umbenennen gilt weiter der volle Name. Das
+  Zeitlimit gilt für Ordner im Netzwerk (Standard 10 s); Erreichbarkeits-
+  prüfung (40 %), Freigabelisten (80 %) und Baum-Ebenen (150 %) leiten sich
+  davon ab. Die Einstellungen liegen als `settings.json` im Konfigordner der App.
+- **Aus dem Design bewusst nicht übernommen:** „Dateien bei Bedarf
+  herunterladen“ und „Speicherplatz automatisch freigeben“ (das steuert der
+  OneDrive-Client, die App lädt nie Inhalte), „Netzlaufwerke beim Anmelden
+  verbinden“ (macht Windows selbst) und „Freigaben automatisch suchen“ (die App
+  zeigt nur Freigaben der Server, die du hinzufügst, keine Netzwerksuche).
 - **Die Ansicht gilt pro Tab** und wird nicht gespeichert; neue Tabs starten
-  in der Liste.
+  mit der Startansicht aus den Einstellungen.
 - **Symbole sind gezeichnet, nicht von Windows**: Ordnersymbol und farbige
   Typ-Kürzel aus dem Design. Echte Windows-Icons und Thumbnails kommen in
   Phase 3; die Typ-Spalte leitet sich bis dahin aus der Endung ab.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { displayName } from '../names';
   import { ChevronRight } from '@lucide/svelte';
   import { errorText, t } from '../i18n';
   import { joinPath } from '../paths';
@@ -149,7 +150,7 @@
                   oncancel={() => (pane.renaming = null)}
                 />
               {:else}
-                <span class="nm" title={entry.name}>{entry.name}</span>
+                <span class="nm" title={entry.name}>{displayName(entry)}</span>
               {/if}
               {#if sync}<SyncBadge state={sync} compact />{/if}
               {#if entry.isDir}<ChevronRight class="chev" size={14} strokeWidth={1.9} />{/if}

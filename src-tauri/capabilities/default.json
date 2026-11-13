@@ -2,13 +2,16 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Minimale Rechte des Hauptfensters: nur Fenstersteuerung und Fenster-Events. Dateisystemzugriffe laufen ausschließlich über die eigenen, validierenden Commands.",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-internal-toggle-maximize",
     "core:window:allow-is-maximized",
     "core:window:allow-close",
+    "core:window:allow-set-theme",
     "core:window:allow-start-dragging",
     "core:event:allow-listen",
     "core:event:allow-unlisten"

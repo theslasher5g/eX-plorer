@@ -81,6 +81,7 @@ export const tauriApi: Api = {
   networkShares: (server) => invoke<ShareInfo[]>('network_shares', { server }),
   window: {
     minimize: () => getCurrentWindow().minimize(),
+    setTheme: (theme) => getCurrentWindow().setTheme(theme),
     toggleMaximize: () => getCurrentWindow().toggleMaximize(),
     close: () => getCurrentWindow().close(),
     isMaximized: () => getCurrentWindow().isMaximized(),

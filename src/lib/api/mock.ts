@@ -361,6 +361,7 @@ const calls = {
   pin: [] as unknown[],
   native: 0,
   drag: [] as unknown[],
+  theme: [] as unknown[],
   invoked: [] as number[],
 };
 let menuSession = 0;
@@ -377,6 +378,11 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 
 const cancelled = new Set<number>();
 let settings: Settings = {
+  theme: 'auto',
+  showExtensions: true,
+  showSyncStatus: true,
+  startView: 'list',
+  networkTimeoutSecs: 10,
   showHidden: false,
   treeDepth: 4,
   treeTotal: 2000,
@@ -757,6 +763,9 @@ export const mockApi: Api = {
   },
   window: {
     async minimize() {},
+    async setTheme(theme) {
+      calls.theme.push(theme);
+    },
     async toggleMaximize() {},
     async close() {},
     async isMaximized() {

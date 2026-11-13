@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { displayName } from '../names';
   import type { Entry } from '../api';
   import { typeLabel } from '../filetypes';
   import { formatDateLong, formatSize } from '../format';
@@ -16,7 +17,7 @@
 
 <aside class="prev" aria-label={t('columns.preview')}>
   <div class="art"><Thumb {entry} dir={pane.path} /></div>
-  <b class="name">{entry.name}</b>
+  <b class="name">{displayName(entry)}</b>
   <dl class="meta">
     <dt>{t('columns.kind')}</dt>
     <dd>{typeLabel(entry)}</dd>
