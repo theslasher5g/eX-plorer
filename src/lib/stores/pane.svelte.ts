@@ -12,6 +12,9 @@ import { TreeState } from './tree.svelte';
 export type SortKey = 'name' | 'modified' | 'type' | 'size';
 export type ViewMode = 'list' | 'grid' | 'columns' | 'tree';
 
+/** Wie oft ein Ordner bei verlorenen Listenstapeln neu gelesen wird. */
+const LOAD_ATTEMPTS = 3;
+
 /** So lange nach dem letzten Buchstaben gilt die Eingabe als zusammengehörig. */
 const TYPE_RESET_MS = 900;
 
@@ -26,6 +29,8 @@ export class Pane {
   path = $state('');
   entries = $state.raw<Entry[]>([]);
   loading = $state(false);
+  /** Wann der Ordner zuletzt vollständig geladen wurde (ms seit 1970). */
+  loadedAt = 0;
   error = $state<ApiError | null>(null);
   /** Zählt erfolgreiche Ladevorgänge; Ansichten setzen daran ihre Scrollposition zurück. */
   revision = $state(0);
@@ -219,38 +224,58 @@ export class Pane {
     this.loading = true;
     if (!keepSelection) this.renaming = null;
 
-    const collected: Entry[] = [];
     let shown = false;
-    try {
-      const api = await getApi();
-      const summary = await api.listDir(target, (batch) => {
+    let lastError: unknown = null;
+    // Nach langem Leerlauf kann das Fenster Listenstapel verlieren (der Kanal
+    // nimmt nichts an). Das erkennen wir an der Anzahl und lesen dann neu, statt
+    // einen scheinbar leeren Ordner zu zeigen.
+    for (let attempt = 0; attempt < LOAD_ATTEMPTS; attempt++) {
+      const collected: Entry[] = [];
+      try {
+        const api = await getApi();
+        const summary = await api.listDir(target, (batch) => {
+          if (generation !== this.#generation) return;
+          for (const entry of batch) collected.push(entry);
+          // Beim Navigieren den ersten Stapel sofort zeigen; der Rest folgt
+          // gesammelt am Ende, damit große Ordner nicht dutzendfach neu
+          // sortiert werden. Beim Aktualisieren flackert nichts: erst am Ende.
+          if (!keepSelection && !shown) {
+            shown = true;
+            this.#show(collected.slice(), false, false);
+          }
+        });
         if (generation !== this.#generation) return;
-        for (const entry of batch) collected.push(entry);
-        // Beim Navigieren den ersten Stapel sofort zeigen; der Rest folgt
-        // gesammelt am Ende, damit große Ordner nicht dutzendfach neu
-        // sortiert werden. Beim Aktualisieren flackert nichts: erst am Ende.
-        if (!keepSelection && !shown) {
-          shown = true;
-          this.#show(collected.slice(), false, false);
+        if (collected.length !== summary.count) {
+          lastError = new Error('incomplete listing');
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          if (generation !== this.#generation) return;
+          continue;
         }
-      });
-      if (generation !== this.#generation) return;
-      // Der Verlauf merkt sich die vom Backend normalisierte Schreibweise.
-      this.path = summary.path;
-      const history = this.#history.slice();
-      history[this.#index] = summary.path;
-      this.#history = history;
-      this.#show(collected, keepSelection || shown, true);
-    } catch (err) {
-      if (generation !== this.#generation) return;
-      this.entries = [];
-      this.#pendingSelect = null;
-      this.renaming = null;
-      this.#resetSelection();
-      this.error = toApiError(err);
-    } finally {
-      if (generation === this.#generation) this.loading = false;
+        // Der Verlauf merkt sich die vom Backend normalisierte Schreibweise.
+        this.path = summary.path;
+        const history = this.#history.slice();
+        history[this.#index] = summary.path;
+        this.#history = history;
+        this.#show(collected, keepSelection || shown, true);
+        this.loadedAt = Date.now();
+        this.loading = false;
+        return;
+      } catch (err) {
+        if (generation !== this.#generation) return;
+        lastError = err;
+        // Verlorene Kanalmeldungen sind vorübergehend; echte Fehler sofort zeigen.
+        if (toApiError(err).code !== 'io') break;
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        if (generation !== this.#generation) return;
+      }
     }
+    if (generation !== this.#generation) return;
+    this.entries = [];
+    this.#pendingSelect = null;
+    this.renaming = null;
+    this.#resetSelection();
+    this.error = toApiError(lastError);
+    this.loading = false;
   }
 
   #show(entries: Entry[], keepSelection: boolean, final: boolean): void {

@@ -1,3 +1,6 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 use explorer_core::listing::{self, Entry};
 use explorer_core::path::validate_path;
 use explorer_core::CoreError;
@@ -39,17 +42,34 @@ pub async fn list_dir(
         let root = valid.root().to_owned();
         let is_root = valid.is_root();
         let target = valid.to_extended();
-        let list = move |cancel: &std::sync::atomic::AtomicBool| {
-            // Bricht ab, sobald das Frontend den Kanal nicht mehr abnimmt
-            // oder das Zeitlimit abgelaufen ist.
-            listing::list_dir(&target, BATCH_SIZE, |batch| {
-                !cancel.load(std::sync::atomic::Ordering::Relaxed) && on_batch.send(batch).is_ok()
-            })
+        // Nimmt das Fenster den Kanal nicht mehr ab (z. B. nach langem Leerlauf),
+        // ist das ein Fehler und kein leeres Ergebnis.
+        let channel_lost = Arc::new(AtomicBool::new(false));
+        let lost = Arc::clone(&channel_lost);
+        let list = move |cancel: &AtomicBool| {
+            // Bricht ab, sobald das Zeitlimit abgelaufen ist oder der Kanal nichts mehr annimmt.
+            let count = listing::list_dir(&target, BATCH_SIZE, |batch| {
+                if cancel.load(Ordering::Relaxed) {
+                    return false;
+                }
+                let sent = on_batch.send(batch).is_ok();
+                if !sent {
+                    lost.store(true, Ordering::Relaxed);
+                }
+                sent
+            })?;
+            if lost.load(Ordering::Relaxed) {
+                return Err(CoreError::Io(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "ui channel closed",
+                )));
+            }
+            Ok(count)
         };
         let result = if remote {
             guard.run(&root, dir_limit, COOL_DOWN, list)
         } else {
-            list(&std::sync::atomic::AtomicBool::new(false))
+            list(&AtomicBool::new(false))
         };
         let count = result.map_err(|err| match err {
             // An der Wurzel einer Freigabe heißt „Zugriff verweigert“: Anmeldung nötig.

@@ -364,9 +364,31 @@ function demoMenu(
 }
 
 const RISKY = ['exe', 'bat', 'cmd', 'msi', 'ps1', 'lnk', 'js'];
-/** 1×1-PNG als Menüsymbol in der Demo. */
-const PIXEL =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+/** Kleines Menüsymbol (Base64-PNG), in der Demo zur Laufzeit gezeichnet. */
+const PIXEL = (() => {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    const grad = ctx.createLinearGradient(0, 0, 32, 32);
+    grad.addColorStop(0, '#8a5cf5');
+    grad.addColorStop(1, '#5b3fd0');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(2, 2, 28, 28, 7);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VS', 16, 17);
+    return canvas.toDataURL('image/png').split(',')[1] ?? '';
+  } catch {
+    return '';
+  }
+})();
 
 const calls = {
   menu: [] as unknown[],
@@ -374,9 +396,11 @@ const calls = {
   pin: [] as unknown[],
   native: 0,
   drag: [] as unknown[],
+  list: 0,
   theme: [] as unknown[],
   invoked: [] as number[],
 };
+let loseBatches = 0;
 let menuSession = 0;
 let menuItems: MenuItem[] = [];
 
@@ -384,6 +408,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   Object.assign(window, {
     __mockCalls: calls,
     __mockMenuNative: () => calls.native,
+    __mockLoseBatches: (n: number) => (loseBatches = n),
   });
 }
 
@@ -496,7 +521,10 @@ export const mockApi: Api = {
     if (!entries && normalized.startsWith('\\\\')) throw { code: 'offline', message: 'offline' };
     if (!entries) throw { code: 'not_found', message: 'not found' };
     const copy = entries.map((e) => ({ ...e }));
-    for (let i = 0; i < copy.length; i += 2000) onBatch(copy.slice(i, i + 2000));
+    calls.list++;
+    // Test-Hilfe: das Fenster „verliert“ Stapel, wie nach langem Leerlauf.
+    if (loseBatches > 0) loseBatches--;
+    else for (let i = 0; i < copy.length; i += 2000) onBatch(copy.slice(i, i + 2000));
     return { path: k ?? normalized, count: copy.length };
   },
 

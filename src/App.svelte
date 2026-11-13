@@ -26,6 +26,9 @@ import { dialogs } from './lib/stores/dialog.svelte';
   import TreeView from './lib/components/TreeView.svelte';
   import Toolbar from './lib/components/Toolbar.svelte';
 
+  /** Ordner, die länger nicht geladen wurden, werden beim Zurückkehren neu gelesen. */
+  const WAKE_STALE_MS = 45_000;
+
   const tabs = new Tabs();
   const pane = $derived(tabs.current);
 
@@ -63,12 +66,29 @@ import { dialogs } from './lib/stores/dialog.svelte';
       void ops.refreshClipboard();
     })();
 
-    // Die Zwischenablage kann sich in anderen Programmen ändern.
-    const onFocus = () => void ops.refreshClipboard();
-    window.addEventListener('focus', onFocus);
+    // Beim Zurückkehren (Fokus, wieder sichtbar), z. B. nach langem Leerlauf:
+    // Zwischenablage neu lesen, veraltete Ordner neu laden und die
+    // Überwachung erneuern. Ereignisse können in der Zwischenzeit verloren sein.
+    const wake = () => {
+      void ops.refreshClipboard();
+      const stale = Date.now() - WAKE_STALE_MS;
+      for (const p of tabs.livePanes) {
+        if (p.path && !p.isNetwork && !p.loading && p.loadedAt < stale) void p.refresh();
+      }
+      const paths = [...new Set(tabs.livePanes.map((p) => p.path).filter(Boolean))];
+      void getApi()
+        .then((api) => api.watchDirs(paths))
+        .catch(() => {});
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') wake();
+    };
+    window.addEventListener('focus', wake);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       disposed = true;
-      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('focus', wake);
+      document.removeEventListener('visibilitychange', onVisible);
       cleanups.forEach((stop) => stop());
     };
   });
