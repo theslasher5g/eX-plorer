@@ -1,21 +1,21 @@
-## Was ändert sich?
+## What changes?
 
-<!-- Kurz und konkret. Verweise auf ein Issue, falls es eins gibt. -->
+<!-- Short and concrete. Link an issue if there is one. -->
 
-## Wie wurde es geprüft?
+## How was it checked?
 
 - [ ] `npm run check`
 - [ ] `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] `cargo test --workspace`
-- [ ] Im Demo-Modus (`npm run dev`) ausprobiert
-- [ ] Auf Windows ausprobiert (nur nötig bei Shell, Drag & Drop, OneDrive, Netzwerk, Installer)
+- [ ] Tried in demo mode (`npm run dev`)
+- [ ] Tried on Windows (only needed for shell, drag & drop, OneDrive, network, installer)
 
-## Sicherheit
+## Security
 
-- [ ] Neue Pfadeingaben werden im Backend mit `validate_path` geprüft
-- [ ] Keine neuen Rechte in `capabilities`, kein `{@html}`, nichts wird automatisch geöffnet
-- [ ] Nicht zutreffend
+- [ ] New path inputs are validated in the backend with `validate_path`
+- [ ] No new permissions in `capabilities`, no `{@html}`, nothing is opened automatically
+- [ ] Not applicable
 
-## Hinweise für die Prüfung
+## Notes for review
 
-<!-- Screenshots/GIFs, offene Fragen, bekannte Grenzen. -->
+<!-- Screenshots/GIFs, open questions, known limits. -->

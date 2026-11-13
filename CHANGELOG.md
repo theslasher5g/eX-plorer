@@ -1,58 +1,58 @@
-# Änderungen
+# Changelog
 
-Alle nennenswerten Änderungen stehen hier. Das Format folgt
-[Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen
-[Semantic Versioning](https://semver.org/lang/de/): Solange die Hauptversion 0 ist,
-können sich auch Nebenversionen noch ändern.
+All notable changes are listed here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
+[Semantic Versioning](https://semver.org/): while the major version is 0, minor
+versions may still change things.
 
-## [Unveröffentlicht]
+## [Unreleased]
 
 ## [0.1.0] - 2026-11-13
 
-Erste öffentliche Version.
+First public release.
 
-### Hinzugefügt
+### Added
 
-- **Oberfläche** im Stil des macOS Finder („Lichtung“): Hell/Dunkel (auch fest
-  wählbar), Mica unter Windows 11, abgerundet, Segoe-UI-Schrift, virtualisierte
-  Listen (getestet mit 100.000 Einträgen).
-- **Ansichten:** Liste, Kacheln, Spalten (mit Vorschau wie im Finder) und
-  Baumansicht mit Limits (Tiefe, Gesamtzahl, pro Ordner), Export als `tree`-Text.
-- **Navigation:** Seitenleiste (Favoriten, OneDrive-Konten, Laufwerke, Netzwerk),
-  Brotkrumen und getippte Pfade, Tabs, Verlauf, Maustasten Zurück/Vor.
-- **Dateioperationen** über die Windows-Shell (`IFileOperation`): Kopieren,
-  Ausschneiden, Einfügen, Verschieben, Umbenennen, Neuer Ordner, Löschen mit
-  Papierkorb und Rückfrage; Zwischenablage kompatibel zum Explorer.
-- **Drag & Drop** innerhalb der App (Ziel live markiert) und von/zu anderen Programmen.
-- **Kontextmenü:** Windows baut das Menü auf (7-Zip, Git, „Senden an“ …), die App
-  zeichnet es im eigenen Stil; „Weitere Optionen“ zeigt das native Menü.
-- **Schnellvorschau** (Leertaste) für Bilder, Text und PDF (pdf.js lokal gebündelt),
-  Windows-Icons und -Thumbnails asynchron.
-- **Suche** im Ordner und allen Unterordnern (mit `*` und `?`), Tippsuche mit den
-  ersten Buchstaben, Gruppieren (Name, Typ, Datum, Größe), Sortieren.
-- **Gummiband-Auswahl** per Maus mit Autoscroll.
-- **Favoriten** per Rechtsklick anheften, per Ziehen umsortieren.
-- **OneDrive:** mehrere Konten, Statussymbole, „Immer behalten“/„Speicherplatz
-  freigeben“ – ohne je Dateien herunterzuladen.
-- **Netzlaufwerke:** UNC-Pfade, Status mit Zeitlimit, Anmeldung über den
-  Windows-Dialog (keine Passwörter in der App).
-- **Live-Aktualisierung** der Ordner (`notify`), Einstellungen (Erscheinungsbild,
-  Endungen, Startansicht, Limits, Netzwerk-Zeitlimit).
-- **Installer** (NSIS pro Benutzer, MSI), läuft ohne Administratorrechte.
+- **Interface** inspired by the macOS Finder ("Lichtung" design): light/dark (can also be
+  set explicitly), Mica on Windows 11, rounded corners, Segoe UI font, virtualized
+  lists (tested with 100,000 entries).
+- **Views:** list, tiles, columns (with a preview like the Finder), and a tree view
+  with limits (depth, total, per folder) and export as `tree` text.
+- **Navigation:** sidebar (favorites, OneDrive accounts, drives, network), breadcrumbs
+  and typed paths, tabs, history, mouse back/forward buttons.
+- **File operations** through the Windows shell (`IFileOperation`): copy, cut, paste,
+  move, rename, new folder, delete with recycle bin and confirmation; clipboard
+  compatible with the Explorer.
+- **Drag & drop** inside the app (target highlighted live) and from/to other programs.
+- **Context menu:** Windows builds the menu (7-Zip, Git, "Send to" …), the app draws it in
+  its own style; "More options" shows the native menu.
+- **Quick look** (Space) for images, text, and PDF (pdf.js bundled locally), Windows
+  icons and thumbnails loaded asynchronously.
+- **Search** in the folder and all subfolders (with `*` and `?`), type-ahead with the
+  first letters, grouping (name, type, date, size), sorting.
+- **Rubber-band selection** with the mouse, with auto-scroll.
+- **Favorites:** pin via right-click, reorder by dragging.
+- **OneDrive:** multiple accounts, status icons, "Always keep"/"Free up space" – without
+  ever downloading files.
+- **Network drives:** UNC paths, status with timeouts, sign-in through the Windows dialog
+  (no passwords in the app).
+- **Live updates** of folders (`notify`), settings (appearance, extensions, start view,
+  limits, network timeout).
+- **Installers** (NSIS per user, MSI) that run without administrator rights.
 
-### Sicherheit
+### Security
 
-- Minimale Tauri-Capabilities, kein Dateisystem-Plugin, strikte CSP.
-- Jeder Pfad wird im Backend geprüft (Traversal, Junctions, reservierte Namen,
-  Alternate Data Streams, lange Pfade).
-- Nichts wird automatisch geöffnet oder ausgeführt; ausführbare Typen nur nach
-  Bestätigung.
+- Minimal Tauri capabilities, no file-system plugin, strict CSP.
+- Every path is validated in the backend (traversal, junctions, reserved names,
+  alternate data streams, long paths).
+- Nothing is opened or executed automatically; executable types only after confirmation.
 
-### Bekannte Einschränkungen
+### Known limitations
 
-- Die Installer sind nicht signiert (SmartScreen-Warnung möglich).
-- Vieles greift tief in Windows ein und wurde bisher nur von wenigen Personen auf
-  echten Rechnern geprüft. Details im [Handbuch](docs/HANDBUCH.md#bekannte-einschränkungen).
+- The installers are not code-signed (SmartScreen may warn).
+- Much of this reaches deep into Windows and has so far only been tried by a few people
+  on real machines. Details in the [manual](docs/MANUAL.md#known-limitations).
+- The interface is German only for now.
 
-[Unveröffentlicht]: https://github.com/theslasher5g/eX-plorer/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/theslasher5g/eX-plorer/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/theslasher5g/eX-plorer/releases/tag/v0.1.0

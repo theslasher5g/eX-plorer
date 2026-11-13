@@ -43,8 +43,8 @@
       "icons/icon.ico"
     ],
     "publisher": "eX-plorer",
-    "shortDescription": "Moderner Datei-Explorer für Windows",
-    "longDescription": "Datei-Explorer mit Listen-, Kachel-, Spalten- und Baumansicht, Tabs, OneDrive- und Netzlaufwerk-Unterstützung.",
+    "shortDescription": "A modern file explorer for Windows, inspired by the macOS Finder",
+    "longDescription": "File explorer with list, tile, column, and tree views, tabs, subfolder search, and OneDrive and network drive support.",
     "category": "Utility",
     "windows": {
       "webviewInstallMode": {

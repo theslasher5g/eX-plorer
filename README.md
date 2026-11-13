@@ -1,209 +1,211 @@
 <div align="center">
 
-<img src="src-tauri/icons/icon.svg" width="96" alt="eX-plorer Logo" />
+<img src="src-tauri/icons/icon.svg" width="96" alt="eX-plorer logo" />
 
 # eX-plorer
 
-**Ein moderner Datei-Explorer für Windows 10 und 11 im Stil des macOS Finder.**
-Schnell, aufgeräumt, mit Spaltenansicht, Suche in Unterordnern und echter Windows-Shell darunter.
+**A modern file explorer for Windows 10 and 11, inspired by the macOS Finder.**
+Fast, tidy, with a column view, search that looks into subfolders, and the real Windows shell underneath.
 
 [![CI](https://github.com/theslasher5g/eX-plorer/actions/workflows/ci.yml/badge.svg)](https://github.com/theslasher5g/eX-plorer/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/theslasher5g/eX-plorer?display_name=tag&sort=semver)](https://github.com/theslasher5g/eX-plorer/releases/latest)
-[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
-![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-stable-DEA584?logo=rust&logoColor=white)
 ![Svelte 5](https://img.shields.io/badge/Svelte-5-FF3E00?logo=svelte&logoColor=white)
 
 [**Download**](https://github.com/theslasher5g/eX-plorer/releases/latest) ·
-[Funktionen](#funktionen) ·
-[Bedienung](#bedienung) ·
-[Selbst bauen](#selbst-bauen) ·
-[Sicherheit](#sicherheit) ·
-[Handbuch](docs/HANDBUCH.md)
+[Features](#features) ·
+[Usage](#usage) ·
+[Build from source](#build-from-source) ·
+[Security](#security) ·
+[Manual](docs/MANUAL.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.png">
-  <img src="docs/media/hero-light.png" alt="eX-plorer in der Spaltenansicht mit Vorschau" width="900">
+  <img src="docs/media/hero-light.png" alt="eX-plorer in column view with a preview pane" width="900">
 </picture>
 
-<sub>Screenshots und GIFs stammen aus dem Demo-Modus mit erfundenen Daten.</sub>
+<sub>Screenshots and GIFs come from the demo mode with made-up data. The app's interface is currently in German.</sub>
 
 </div>
 
 ---
 
 > [!NOTE]
-> **Frühe Version (0.1).** Vieles greift tief in Windows ein (Shell, Drag & Drop, OneDrive,
-> Netzwerk) und wurde bisher nur von wenigen Personen auf echten Rechnern geprüft.
-> Fehlerberichte sind willkommen. Die ehrlichen Grenzen stehen im
-> [Handbuch](docs/HANDBUCH.md#bekannte-einschränkungen).
+> **Early version (0.1).** Much of this reaches deep into Windows (shell, drag & drop, OneDrive,
+> network) and has so far only been tried by a few people on real machines. Bug reports are welcome.
+> The honest limits are listed in the [manual](docs/MANUAL.md#known-limitations).
 
-## Funktionen
+> [!NOTE]
+> **Language:** the user interface is German only for now. All texts live in one file
+> (`src/lib/i18n/de.ts`), so adding a translation is mostly a matter of providing a second file.
+
+## Features
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 🗂 Vier Ansichten
-**Liste**, **Kacheln**, **Spalten** wie im Finder (mit Vorschau rechts) und eine
-**Baumansicht** mit festen Obergrenzen – auch bei 100.000 Dateien flüssig, weil alles
-virtualisiert ist. `Strg+1…4` wechselt.
+### 🗂 Four views
+**List**, **tiles**, **columns** like in the Finder (with a preview on the right), and a
+**tree view** with hard limits. Smooth even with 100,000 files because everything is
+virtualized. `Ctrl+1…4` switches views.
 
 </td>
 <td width="50%" valign="top">
 
-### 🔎 Suche, die Unterordner kennt
-Tippen filtert sofort, danach wird im Hintergrund in **allen Unterordnern**
-gesucht (`*` und `?` als Platzhalter). Zusätzlich springt die **Tippsuche** mit den
-ersten Buchstaben zur Datei.
+### 🔎 Search that looks into subfolders
+Typing filters instantly, then searches **all subfolders** in the background
+(`*` and `?` work as wildcards). **Type-ahead** jumps to a file as you type
+the first letters of its name.
 
 </td>
 </tr>
 <tr>
 <td valign="top">
 
-### 🖱 Wie ein Profi-Werkzeug
-Auswahl per **Gummiband**, **Drag & Drop** mit Live-Markierung des Ziels,
-**Gruppieren** nach Name, Typ, Datum und Größe, **Tabs**, Favoriten per Rechtsklick
-anheften und per Ziehen sortieren.
+### 🖱 Power-user touches
+**Rubber-band** selection, **drag & drop** with a live-highlighted target,
+**grouping** by name, type, date, and size, **tabs**, and favorites you pin with
+a right-click and reorder by dragging.
 
 </td>
 <td valign="top">
 
-### 🪟 Echte Windows-Shell
-Kopieren, Verschieben und Löschen laufen über `IFileOperation` (Papierkorb,
-Konfliktdialoge). Das **Kontextmenü** kommt von Windows – 7-Zip, Git & Co. erscheinen –,
-gezeichnet wird es im Stil der App.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-### ☁️ OneDrive und Netzwerk
-Mehrere OneDrive-Konten mit **Statussymbolen**, „Immer behalten“ und „Speicherplatz
-freigeben“ – ohne je Dateien herunterzuladen. **Netzlaufwerke** mit Zeitlimit, ohne
-dass die Oberfläche hängt; Anmeldung über den Windows-Dialog.
-
-</td>
-<td valign="top">
-
-### 👁 Schnellvorschau
-`Leertaste` zeigt Bilder, Text und **PDF** (pdf.js, lokal gebündelt) – ohne Datei zu
-öffnen. Icons und Thumbnails kommen asynchron von Windows.
+### 🪟 The real Windows shell
+Copy, move, and delete run through `IFileOperation` (recycle bin, conflict dialogs).
+The **context menu** is built by Windows – 7-Zip, Git & co. show up – and drawn in the
+app's own style.
 
 </td>
 </tr>
 <tr>
 <td valign="top">
 
-### 🌗 Hell, Dunkel, Mica
-Folgt Windows oder ist fest wählbar; Mica-Hintergrund unter Windows 11,
-abgerundet, Segoe UI Variable.
+### ☁️ OneDrive and network
+Multiple OneDrive accounts with **status icons**, "Always keep on this device" and
+"Free up space" – without ever downloading a file. **Network drives** with timeouts so
+the UI never hangs; sign-in goes through the Windows dialog.
 
 </td>
 <td valign="top">
 
-### 🔒 Sicherheit zuerst
-Minimale Tauri-Rechte, **jeder Pfad wird im Backend geprüft**, strikte CSP, nichts wird
-automatisch geöffnet. Läuft ohne Administratorrechte.
-[Mehr dazu](#sicherheit)
+### 👁 Quick look
+`Space` previews images, text, and **PDF** (pdf.js, bundled locally) without opening
+the file. Icons and thumbnails come asynchronously from Windows.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🌗 Light, dark, Mica
+Follows Windows or can be set explicitly; Mica backdrop on Windows 11,
+rounded corners, Segoe UI Variable.
+
+</td>
+<td valign="top">
+
+### 🔒 Security first
+Minimal Tauri permissions, **every path is validated in the backend**, strict CSP,
+nothing is opened automatically. Runs without administrator rights.
+[More below](#security)
 
 </td>
 </tr>
 </table>
 
-### In Aktion
+### In action
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/views.gif" alt="Wechsel zwischen Liste, Kacheln, Spalten und Baum" /><br><sub><b>Ansichten:</b> Liste, Kacheln, Spalten mit Vorschau, Baum</sub></td>
-<td width="50%"><img src="docs/media/search.gif" alt="Suche in Unterordnern und Tippsuche" /><br><sub><b>Suche:</b> Unterordner, Platzhalter, Tippsuche</sub></td>
+<td width="50%"><img src="docs/media/views.gif" alt="Switching between list, tiles, columns, and tree" /><br><sub><b>Views:</b> list, tiles, columns with preview, tree</sub></td>
+<td width="50%"><img src="docs/media/search.gif" alt="Subfolder search and type-ahead" /><br><sub><b>Search:</b> subfolders, wildcards, type-ahead</sub></td>
 </tr>
 <tr>
-<td><img src="docs/media/drag.gif" alt="Gummiband-Auswahl, Drag und Drop, Gruppieren" /><br><sub><b>Auswahl &amp; Ziehen:</b> Gummiband, Drag &amp; Drop, Gruppieren</sub></td>
-<td><img src="docs/media/favorites.gif" alt="Kontextmenü, Favoriten anheften, Dunkelmodus" /><br><sub><b>Menü &amp; Favoriten:</b> anheften, umsortieren, dunkles Design</sub></td>
+<td><img src="docs/media/drag.gif" alt="Rubber-band selection, drag and drop, grouping" /><br><sub><b>Selecting &amp; dragging:</b> rubber band, drag &amp; drop, grouping</sub></td>
+<td><img src="docs/media/favorites.gif" alt="Context menu, pinning favorites, dark mode" /><br><sub><b>Menu &amp; favorites:</b> pin, reorder, dark theme</sub></td>
 </tr>
 </table>
 
-### Weitere Einblicke
+### More screenshots
 
 <table>
 <tr>
-<td width="33%"><img src="docs/media/context-menu.png" alt="Kontextmenü mit Untermenü"><br><sub>Kontextmenü mit Untermenüs</sub></td>
-<td width="33%"><img src="docs/media/list-grouped.png" alt="Liste gruppiert nach Änderungsdatum"><br><sub>Gruppiert nach Änderungsdatum</sub></td>
-<td width="33%"><img src="docs/media/tiles.png" alt="Kachelansicht"><br><sub>Kachelansicht</sub></td>
+<td width="33%"><img src="docs/media/context-menu.png" alt="Context menu with submenu"><br><sub>Context menu with submenus</sub></td>
+<td width="33%"><img src="docs/media/list-grouped.png" alt="List grouped by date modified"><br><sub>Grouped by date modified</sub></td>
+<td width="33%"><img src="docs/media/tiles.png" alt="Tile view"><br><sub>Tile view</sub></td>
 </tr>
 <tr>
-<td><img src="docs/media/search.png" alt="Suchergebnisse aus Unterordnern"><br><sub>Treffer aus Unterordnern</sub></td>
-<td><img src="docs/media/onedrive.png" alt="OneDrive mit Statussymbolen"><br><sub>OneDrive-Status</sub></td>
-<td><img src="docs/media/network.png" alt="Netzlaufwerke mit Status"><br><sub>Netzlaufwerke</sub></td>
+<td><img src="docs/media/search.png" alt="Search results from subfolders"><br><sub>Hits from subfolders</sub></td>
+<td><img src="docs/media/onedrive.png" alt="OneDrive with status icons"><br><sub>OneDrive status</sub></td>
+<td><img src="docs/media/network.png" alt="Network drives with status"><br><sub>Network drives</sub></td>
 </tr>
 <tr>
-<td><img src="docs/media/settings.png" alt="Einstellungen"><br><sub>Einstellungen</sub></td>
-<td><img src="docs/media/quicklook.png" alt="Schnellvorschau"><br><sub>Schnellvorschau (PDF)</sub></td>
-<td><img src="docs/media/tree.png" alt="Baumansicht"><br><sub>Baumansicht mit Limits</sub></td>
+<td><img src="docs/media/settings.png" alt="Settings"><br><sub>Settings</sub></td>
+<td><img src="docs/media/quicklook.png" alt="Quick look"><br><sub>Quick look (PDF)</sub></td>
+<td><img src="docs/media/tree.png" alt="Tree view"><br><sub>Tree view with limits</sub></td>
 </tr>
 </table>
 
-## Installieren
+## Install
 
-1. Lade vom [neuesten Release](https://github.com/theslasher5g/eX-plorer/releases/latest) eine der Dateien:
-   - **`eX-plorer_…_x64-setup.exe`** – installiert **pro Benutzer**, ohne Administratorrechte *(empfohlen)*
-   - **`eX-plorer_…_x64_de-DE.msi`** – systemweit, fragt nach Administratorrechten
-2. Prüfe bei Bedarf die Summe mit `SHA256SUMS.txt` (`Get-FileHash <Datei>` in PowerShell).
-3. Starten und loslegen. Die WebView2-Laufzeit (unter Windows 11 vorhanden) wird bei Bedarf nachgeladen.
+1. Download one of these from the [latest release](https://github.com/theslasher5g/eX-plorer/releases/latest):
+   - **`eX-plorer_…_x64-setup.exe`** – installs **per user**, no administrator rights needed *(recommended)*
+   - **`eX-plorer_…_x64_de-DE.msi`** – system-wide, asks for administrator rights
+2. Optionally verify the checksum against `SHA256SUMS.txt` (`Get-FileHash <file>` in PowerShell).
+3. Run it. The WebView2 runtime (present on Windows 11) is downloaded if it is missing.
 
 > [!WARNING]
-> Die Installer sind **nicht signiert**. Windows SmartScreen zeigt deshalb ggf. „Der
-> Computer wurde durch Windows geschützt“ – über *Weitere Informationen → Trotzdem ausführen*
-> geht es weiter. Wer dem nicht traut, baut die App [selbst](#selbst-bauen).
+> The installers are **not code-signed**, so Windows SmartScreen may show "Windows protected your PC".
+> Choose *More info → Run anyway* to continue. If you would rather not, [build it yourself](#build-from-source).
 
-**Voraussetzungen:** Windows 10 (ab 1809) oder Windows 11, x64.
+**Requirements:** Windows 10 (version 1809 or later) or Windows 11, x64.
 
-## Bedienung
+## Usage
 
-| Aktion | Eingabe |
+| Action | Input |
 | --- | --- |
-| Ansicht wechseln | `Strg+1` Liste · `Strg+2` Kacheln · `Strg+3` Spalten · `Strg+4` Baum |
-| Suchen (auch Unterordner) | `Strg+F`, dann tippen – `*` und `?` sind Platzhalter |
-| Datei anspringen | Erste Buchstaben des Namens tippen |
-| Schnellvorschau | `Leertaste` |
-| Pfad eingeben | `Strg+L` oder `F4` |
-| Zurück / Vor / Hoch | `Alt+←` / `Alt+→` / `Alt+↑` (oder Maustasten 4/5, Rücktaste) |
-| Neuer / geschlossener Tab, wechseln | `Strg+T` / `Strg+W` / `Strg+Tab` |
-| Kopieren, Ausschneiden, Einfügen | `Strg+C` / `Strg+X` / `Strg+V` (auch mit dem Windows-Explorer) |
-| Umbenennen, Löschen | `F2` · `Entf` (Papierkorb), `Umschalt+Entf` (endgültig) |
-| Neuer Ordner | `Strg+Umschalt+N` |
-| Kontextmenü | Rechtsklick, `Menütaste` oder `Umschalt+F10` |
-| Favoriten anheften | Rechtsklick auf einen Ordner bzw. auf die leere Fläche |
-| Mehrere Dateien wählen | Mit der Maus auf freier Fläche ziehen (`Strg`/`Umschalt` behalten die Auswahl) |
-| Einstellungen | `Strg+,` |
+| Switch view | `Ctrl+1` list · `Ctrl+2` tiles · `Ctrl+3` columns · `Ctrl+4` tree |
+| Search (including subfolders) | `Ctrl+F`, then type – `*` and `?` are wildcards |
+| Jump to a file | Type the first letters of its name |
+| Quick look | `Space` |
+| Enter a path | `Ctrl+L` or `F4` |
+| Back / forward / up | `Alt+←` / `Alt+→` / `Alt+↑` (or mouse buttons 4/5, Backspace) |
+| New / close / switch tab | `Ctrl+T` / `Ctrl+W` / `Ctrl+Tab` |
+| Copy, cut, paste | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` (also works with the Windows Explorer) |
+| Rename, delete | `F2` · `Del` (recycle bin), `Shift+Del` (permanent) |
+| New folder | `Ctrl+Shift+N` |
+| Context menu | Right-click, `Menu` key, or `Shift+F10` |
+| Pin a favorite | Right-click a folder, or the empty area to pin the open folder |
+| Select with the mouse | Drag on empty space (`Ctrl`/`Shift` keep the selection) |
+| Settings | `Ctrl+,` |
 
-Alle Abläufe, Grenzen und Hinweise stehen im [Handbuch](docs/HANDBUCH.md#bedienung).
+Full workflows, limits, and notes are in the [manual](docs/MANUAL.md#usage).
 
-## Selbst bauen
+## Build from source
 
-Voraussetzungen: [Rust](https://rustup.rs) (stable, MSVC-Toolchain, „Desktopentwicklung mit C++“ aus den
-Visual-Studio-Build-Tools), [Node.js](https://nodejs.org) 22 oder neuer, Windows 10/11.
+Requirements: [Rust](https://rustup.rs) (stable, MSVC toolchain, "Desktop development with C++" from the
+Visual Studio Build Tools), [Node.js](https://nodejs.org) 22 or newer, Windows 10/11.
 
 ```bash
 git clone https://github.com/theslasher5g/eX-plorer.git
 cd eX-plorer
 npm install
-npm run tauri dev        # Entwicklungsmodus mit Hot-Reload
-npm run tauri build      # Installer (NSIS + MSI) unter src-tauri/target/release/bundle/
+npm run tauri dev        # development mode with hot reload
+npm run tauri build      # installers (NSIS + MSI) in src-tauri/target/release/bundle/
 ```
 
-Nur die Oberfläche im Browser, mit erfundenen Demo-Daten und ohne Zugriff aufs Dateisystem
-(auch unter Linux/macOS nützlich):
+Just the interface in a browser, with made-up demo data and no file-system access
+(handy on Linux/macOS too):
 
 ```bash
 npm run dev
 ```
 
-Prüfungen (laufen genauso in der CI auf `windows-latest`):
+Checks (the CI runs the same on `windows-latest`):
 
 ```bash
 npm run check
@@ -214,43 +216,45 @@ cargo test --workspace
 cargo audit
 ```
 
-## Aufbau
+## Architecture
 
 ```
-src/                    Svelte 5 + TypeScript (Oberfläche, Stores, Demo-Backend)
+src/                    Svelte 5 + TypeScript (UI, stores, demo backend)
 src-tauri/
-  crates/core/          Plattformneutraler Kern: Pfadprüfung, Listing, Suche, Baum, Einstellungen …
-  src/                  Tauri-App: Commands und dünne Windows-Schicht (Shell, COM, Registry, WNet)
-docs/                   Handbuch, Medien
+  crates/core/          Platform-neutral core: path validation, listing, search, tree, settings …
+  src/                  Tauri app: commands and a thin Windows layer (shell, COM, registry, WNet)
+docs/                   Manual, media
 ```
 
-Das Frontend hat **keinen** Dateisystemzugriff; es spricht nur mit eigenen, validierenden
-Tauri-Commands. Der Kern ist ohne Windows testbar (`cargo test -p explorer-core`), die
-Windows-Aufrufe stehen in kleinen, abgegrenzten Modulen. Mehr im [Handbuch](docs/HANDBUCH.md#aufbau).
+The frontend has **no** file-system access; it only talks to its own validating Tauri
+commands. The core is testable without Windows (`cargo test -p explorer-core`); the
+Windows calls live in small, clearly bounded modules. More in the [manual](docs/MANUAL.md#architecture).
 
-## Sicherheit
+## Security
 
-- **Minimale Rechte:** keine Tauri-Plugins für Dateisystem oder Shell, Capabilities nur für Fenstersteuerung.
-- **Jeder Pfad wird im Backend geprüft** – Traversal, Junctions, reservierte Namen, Alternate Data Streams, lange Pfade.
-- **Strikte CSP**, keine Remote-Inhalte, kein `eval`, Dateinamen nie als HTML.
-- **Nichts wird automatisch geöffnet oder ausgeführt**; Programme (exe, bat, ps1 …) nur nach Bestätigung.
-- **Nur Metadaten beim Auflisten:** OneDrive-Platzhalter werden nie gelesen, Netzwerkpfade haben Zeitlimits.
-- `unsafe` nur in kleinen Windows-Modulen, `unwrap()` per Lint verboten, `clippy -D warnings` und `cargo audit` in der CI.
+- **Minimal permissions:** no Tauri plugins for the file system or shell; capabilities only cover window control.
+- **Every path is validated in the backend** – traversal, junctions, reserved names, alternate data streams, long paths.
+- **Strict CSP**, no remote content, no `eval`, file names are never rendered as HTML.
+- **Nothing is opened or executed automatically**; programs (exe, bat, ps1 …) only after confirmation.
+- **Metadata only when listing:** OneDrive placeholders are never read, network paths have timeouts.
+- `unsafe` only in small Windows modules, `unwrap()` banned by lint, `clippy -D warnings` and `cargo audit` in CI.
 
-Eine Schwachstelle gefunden? Bitte **privat** melden – siehe [SECURITY.md](SECURITY.md).
+Found a vulnerability? Please report it **privately** – see [SECURITY.md](SECURITY.md).
 
-## Mitmachen
+## Contributing
 
-Fehler melden, Ideen einbringen, Code beisteuern – siehe [CONTRIBUTING.md](CONTRIBUTING.md).
-Neue Versionen veröffentlichst du mit `npm run version:set -- x.y.z`, einem Eintrag im
-[CHANGELOG](CHANGELOG.md) und einem Tag `vx.y.z` – oder startest den [Release-Workflow](.github/workflows/release.yml) unter *Actions → Release → Run workflow*; er baut die Installer und veröffentlicht sie.
+Report bugs, suggest ideas, send code – see [CONTRIBUTING.md](CONTRIBUTING.md).
+You publish a new version with `npm run version:set -- x.y.z`, an entry in the
+[changelog](CHANGELOG.md), and a `vx.y.z` tag – or by running the
+[release workflow](.github/workflows/release.yml) under *Actions → Release → Run workflow*,
+which builds the installers and publishes them.
 
-## Danksagung
+## Acknowledgements
 
-Gebaut mit [Tauri](https://tauri.app), [Svelte](https://svelte.dev), [pdf.js](https://mozilla.github.io/pdf.js/),
-[Lucide](https://lucide.dev) und dem [`windows`-Crate](https://github.com/microsoft/windows-rs).
-Das Aussehen folgt dem Design „Lichtung“.
+Built with [Tauri](https://tauri.app), [Svelte](https://svelte.dev), [pdf.js](https://mozilla.github.io/pdf.js/),
+[Lucide](https://lucide.dev), and the [`windows` crate](https://github.com/microsoft/windows-rs).
+The look follows the "Lichtung" design.
 
-## Lizenz
+## License
 
 [MIT](LICENSE) © 2026 theslasher5g

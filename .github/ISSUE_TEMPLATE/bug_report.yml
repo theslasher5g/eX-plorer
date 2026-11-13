@@ -1,58 +1,58 @@
-name: Fehlerbericht
-description: Etwas funktioniert nicht wie erwartet
+name: Bug report
+description: Something does not work as expected
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Danke fürs Melden! **Sicherheitsprobleme bitte nicht hier**, sondern wie in der
-        [Sicherheitsrichtlinie](../blob/main/SECURITY.md) beschrieben.
+        Thanks for reporting! **Please do not report security problems here**, follow the
+        [security policy](../blob/main/SECURITY.md) instead.
   - type: textarea
-    id: was
+    id: what
     attributes:
-      label: Was ist passiert?
-      description: Beschreibe den Fehler und was du erwartet hättest. Screenshots oder kurze GIFs helfen.
+      label: What happened?
+      description: Describe the bug and what you expected. Screenshots or short GIFs help.
     validations:
       required: true
   - type: textarea
-    id: schritte
+    id: steps
     attributes:
-      label: So lässt es sich nachstellen
+      label: How to reproduce
       placeholder: |
-        1. Spaltenansicht öffnen (Strg+3)
+        1. Open the column view (Ctrl+3)
         2. …
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Version von eX-plorer
-      placeholder: z. B. 0.1.0 (steht im Namen des Installers)
+      label: eX-plorer version
+      placeholder: e.g. 0.1.0 (it is in the installer's file name)
     validations:
       required: true
   - type: input
     id: windows
     attributes:
-      label: Windows-Version
-      placeholder: z. B. Windows 11 23H2 (Build 22631)
+      label: Windows version
+      placeholder: e.g. Windows 11 23H2 (build 22631)
     validations:
       required: true
   - type: dropdown
-    id: ort
+    id: where
     attributes:
-      label: Wo tritt es auf?
+      label: Where does it happen?
       multiple: true
       options:
-        - Lokaler Ordner
+        - Local folder
         - OneDrive
-        - Netzlaufwerk / UNC
-        - Wechseldatenträger
-        - Kontextmenü / Shell-Erweiterungen
-        - Drag & Drop
+        - Network drive / UNC
+        - Removable drive
+        - Context menu / shell extensions
+        - Drag & drop
         - Installer
-        - Sonstiges
+        - Other
   - type: textarea
-    id: weiteres
+    id: more
     attributes:
-      label: Weitere Angaben
-      description: Besonderheiten (sehr viele Dateien, Sicherheitssoftware, mehrere Bildschirme …).
+      label: Anything else
+      description: Special circumstances (very many files, security software, multiple monitors …).

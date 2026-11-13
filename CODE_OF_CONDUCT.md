@@ -1,19 +1,17 @@
-# Verhaltenskodex
+# Code of Conduct
 
-Wir möchten, dass jede Person unabhängig von Erfahrung, Herkunft, Identität oder
-Weltanschauung freundlich und ohne Angst mitmachen kann.
+We want everyone, regardless of experience, background, identity, or beliefs, to be able
+to take part in a friendly way and without fear.
 
-**Das erwarten wir:** respektvoller Umgang, sachliche Kritik an Code und Ideen
-(nicht an Personen), Geduld mit Neulingen, Verständnis für unterschiedliche
-Meinungen.
+**What we expect:** respectful treatment, factual criticism of code and ideas (not of
+people), patience with newcomers, and understanding for differing opinions.
 
-**Das dulden wir nicht:** Beleidigungen, Belästigung, Diskriminierung,
-herabwürdigende oder sexualisierte Sprache und Bilder, das Veröffentlichen
-privater Informationen anderer, Dauerprovokation.
+**What we do not tolerate:** insults, harassment, discrimination, demeaning or sexualized
+language and imagery, publishing other people's private information, and persistent provocation.
 
-**Durchsetzung:** Die Betreuenden dürfen Beiträge, Kommentare und Issues bearbeiten,
-verbergen oder löschen und Personen vorübergehend oder dauerhaft ausschließen.
-Verstöße kannst du über die Meldefunktion von GitHub (Kommentar melden) oder
-vertraulich über die Hinweise in [SECURITY.md](SECURITY.md) melden.
+**Enforcement:** the maintainers may edit, hide, or delete contributions, comments, and
+issues, and may temporarily or permanently ban people. You can report violations through
+GitHub's reporting feature (report a comment) or confidentially as described in
+[SECURITY.md](SECURITY.md).
 
-Dieser Kodex lehnt sich an den [Contributor Covenant](https://www.contributor-covenant.org/de/version/2/1/code_of_conduct/) an.
+This code is based on the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).

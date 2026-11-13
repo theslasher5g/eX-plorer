@@ -1,30 +1,28 @@
-# Mitmachen
+# Contributing
 
-Danke, dass du eX-plorer verbessern willst! Fehler, Ideen und Pull Requests sind
-willkommen.
+Thanks for wanting to improve eX-plorer! Bug reports, ideas, and pull requests are welcome.
 
-## Fehler melden und Ideen einbringen
+## Reporting bugs and suggesting ideas
 
-- **Fehler:** Nutze die Vorlage „Fehlerbericht“. Hilfreich sind Windows-Version,
-  App-Version (Einstellungen / Installer-Name), Schritte zum Nachstellen und
-  ein Screenshot.
-- **Ideen:** Vorlage „Funktionswunsch“. Beschreibe das Problem, nicht nur die Lösung.
-- **Sicherheitsprobleme:** nicht öffentlich melden, siehe [SECURITY.md](SECURITY.md).
+- **Bugs:** use the "Bug report" template. Helpful details: Windows version, app version
+  (it is in the installer's file name), steps to reproduce, and a screenshot.
+- **Ideas:** use the "Feature request" template. Describe the problem, not just the solution.
+- **Security problems:** do not report them publicly, see [SECURITY.md](SECURITY.md).
 
-## Entwicklungsumgebung
+## Development setup
 
-Voraussetzungen und Befehle stehen im [README](README.md#selbst-bauen). Kurzfassung:
+Requirements and commands are in the [README](README.md#build-from-source). In short:
 
 ```bash
 npm install
-npm run tauri dev      # App mit Hot-Reload (Windows)
-npm run dev            # nur die Oberfläche im Browser mit Demo-Daten (überall)
+npm run tauri dev      # app with hot reload (Windows)
+npm run dev            # just the UI in a browser with demo data (any OS)
 ```
 
-Der Kern (`src-tauri/crates/core`) ist plattformneutral und lässt sich auch unter
-Linux/macOS testen: `cargo test -p explorer-core`.
+The core (`src-tauri/crates/core`) is platform-neutral and can also be tested on
+Linux/macOS: `cargo test -p explorer-core`.
 
-## Vor dem Pull Request
+## Before opening a pull request
 
 ```bash
 npm run check                                    # svelte-check
@@ -35,34 +33,32 @@ cargo test --workspace
 cargo audit
 ```
 
-Die CI führt dasselbe auf `windows-latest` aus.
+The CI runs the same on `windows-latest`.
 
-## Regeln für den Code
+## Code rules
 
-Diese Punkte sind **verbindlich** (siehe auch [Sicherheit im Handbuch](docs/HANDBUCH.md#sicherheit)):
+These points are **binding** (see also [Security in the manual](docs/MANUAL.md#security)):
 
-- Das Frontend greift **nie** direkt aufs Dateisystem zu; neue Funktionen sind
-  Tauri-Commands, die **jeden Pfad** mit `validate_path` prüfen.
-- Keine Tauri-Plugins für Dateisystem/Shell, Capabilities so klein wie möglich.
-- Kein `{@html}`/`innerHTML` mit Dateinamen oder Dateiinhalten.
-- Nichts öffnen oder ausführen ohne ausdrückliche Handlung des Benutzers.
-- Beim Auflisten nur Metadaten lesen; Cloud-Platzhalter und Netzwerkpfade nie
-  automatisch öffnen.
-- `unsafe` nur in den kleinen Windows-API-Modulen (`src-tauri/src/shell`,
-  `crates/core/src/listing/win.rs`), mit `// SAFETY:`-Kommentar.
-- Kein `unwrap()`/`expect()` im Produktivcode, Fehler mit `thiserror`.
-- Texte der Oberfläche gehören in `src/lib/i18n/de.ts`, nicht in die Komponenten.
-- Neue API-Methoden stehen in `types.ts`, `tauri.ts` **und** `mock.ts` (Demo-Modus).
+- The frontend **never** touches the file system directly; new features are Tauri
+  commands that validate **every path** with `validate_path`.
+- No Tauri plugins for the file system/shell; keep capabilities as small as possible.
+- No `{@html}`/`innerHTML` with file names or file contents.
+- Never open or execute anything without an explicit user action.
+- When listing, read metadata only; never open cloud placeholders or network paths automatically.
+- `unsafe` only in the small Windows API modules (`src-tauri/src/shell`,
+  `crates/core/src/listing/win.rs`), with a `// SAFETY:` comment.
+- No `unwrap()`/`expect()` in production code; errors use `thiserror`.
+- UI texts belong in `src/lib/i18n/de.ts`, not in components.
+- New API methods go into `types.ts`, `tauri.ts` **and** `mock.ts` (demo mode).
 
-## Commits und Pull Requests
+## Commits and pull requests
 
-- Kleine, thematisch zusammenhängende Commits mit aussagekräftiger Nachricht.
-- Beschreibe im PR, was sich ändert und wie du es geprüft hast. Änderungen, die
-  nur unter Windows prüfbar sind (Shell, Drag & Drop, OneDrive, Netzwerk), bitte
-  ausdrücklich so kennzeichnen.
-- Neue Funktionen bekommen Tests (Kern: Rust-Tests; Oberfläche: Verhalten im
-  Demo-Modus nachvollziehbar beschreiben).
+- Small, focused commits with a meaningful message.
+- Describe in the PR what changes and how you checked it. Please say explicitly when a
+  change can only be verified on Windows (shell, drag & drop, OneDrive, network).
+- New features come with tests (core: Rust tests; UI: describe how the behavior can be
+  reproduced in demo mode).
 
-## Verhaltensregeln
+## Code of conduct
 
-Es gilt der [Verhaltenskodex](CODE_OF_CONDUCT.md).
+The [Code of Conduct](CODE_OF_CONDUCT.md) applies.
