@@ -35,9 +35,11 @@
 
 <style>
   .prev {
-    flex: 1;
-    min-width: 240px;
-    padding: 28px 24px;
+    flex: none;
+    width: clamp(200px, 28%, 320px);
+    box-sizing: border-box;
+    border-left: 1px solid var(--border);
+    padding: 28px 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -67,7 +69,7 @@
     width: 100%;
     margin: 0;
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 6px 16px;
     font-size: 13px;
   }
@@ -78,6 +80,8 @@
 
   .meta dd {
     margin: 0;
+    min-width: 0;
     text-align: right;
+    overflow-wrap: break-word;
   }
 </style>

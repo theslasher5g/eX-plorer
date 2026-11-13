@@ -84,7 +84,7 @@
 <style>
   .crumbbox {
     flex: 1;
-    min-width: 0;
+    min-width: 90px;
     height: 34px;
     display: flex;
     align-items: center;

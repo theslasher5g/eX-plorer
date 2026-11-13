@@ -66,7 +66,7 @@
   </div>
 
   <button
-    class="icon-btn"
+    class="icon-btn newfolder"
     title={t('ops.newFolder')}
     aria-label={t('ops.newFolder')}
     disabled={!!pane.error || !pane.path || pane.isNetwork}
@@ -102,6 +102,7 @@
 
 <style>
   .toolbar {
+    container-type: inline-size;
     height: 56px;
     flex: none;
     display: flex;
@@ -155,7 +156,8 @@
 
   .search {
     width: 190px;
-    flex: none;
+    flex: 0 1 190px;
+    min-width: 96px;
     height: 34px;
     display: flex;
     align-items: center;
@@ -197,5 +199,16 @@
   .clear {
     width: 24px;
     height: 24px;
+  }
+
+  /* Schmales Fenster: „Neuer Ordner“ weicht, die Suche wird kleiner. */
+  @container (max-width: 640px) {
+    .newfolder {
+      display: none;
+    }
+
+    .search {
+      flex-basis: 120px;
+    }
   }
 </style>

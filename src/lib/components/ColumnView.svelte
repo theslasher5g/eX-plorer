@@ -31,9 +31,10 @@
     });
   });
 
-  // Neue Spalten rechts ins Bild holen.
+  // Neue Spalten rechts ins Bild holen (auch wenn die Vorschau Platz wegnimmt).
   $effect(() => {
     void cols.rest.length;
+    void cols.preview;
     void tick().then(() => {
       if (strip) strip.scrollLeft = strip.scrollWidth;
     });
@@ -97,18 +98,21 @@
   });
 </script>
 
-<div class="cols" bind:this={strip}>
+<div class="cols">
   {#if pane.error}
     <ListState {pane} />
   {:else}
-    {#each all as column, i (column.id)}
-      <ColumnList
-        pane={column}
-        active={i === cols.activeIndex}
-        onfocus={() => cols.activate(i)}
-        onkeydown={(event, page) => onKey(column, event, page)}
-      />
-    {/each}
+    <!-- Nur die Spalten scrollen; die Vorschau bleibt rechts immer ganz sichtbar. -->
+    <div class="strip" bind:this={strip}>
+      {#each all as column, i (column.id)}
+        <ColumnList
+          pane={column}
+          active={i === cols.activeIndex}
+          onfocus={() => cols.activate(i)}
+          onkeydown={(event, page) => onKey(column, event, page)}
+        />
+      {/each}
+    </div>
     {#if cols.preview}
       <ColumnPreview pane={cols.preview.column} entry={cols.preview.entry} />
     {:else if cols.multi}
@@ -121,14 +125,23 @@
   .cols {
     flex: 1;
     min-height: 0;
+    min-width: 0;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .strip {
+    flex: 1;
+    min-width: 0;
     display: flex;
     overflow-x: auto;
     overflow-y: hidden;
   }
 
   .multi {
-    flex: 1;
-    min-width: 240px;
+    flex: none;
+    width: clamp(200px, 28%, 320px);
+    border-left: 1px solid var(--border);
     margin: 0;
     padding: 28px 24px;
     text-align: center;
