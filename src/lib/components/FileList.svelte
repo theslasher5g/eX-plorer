@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ChevronDown } from '@lucide/svelte';
+  import { Lasso } from '../lasso.svelte';
   import type { Entry } from '../api';
   import { typeLabel } from '../filetypes';
   import { formatDate, formatDateLong, formatSize } from '../format';
@@ -35,9 +36,61 @@
   let height = $state(0);
 
   const items = $derived(pane.visible);
+  const groups = $derived(pane.groups);
+
+  // Zeilenmodell: ohne Gruppen ist Zeile = Eintrag; mit Gruppen steht vor jeder
+  // Gruppe eine Kopfzeile (negativer Wert -(Gruppe+1)), sonst der Eintragsindex.
+  const model = $derived.by(() => {
+    if (groups.length === 0) return null;
+    const rows = new Int32Array(items.length + groups.length);
+    let r = 0;
+    groups.forEach((group, g) => {
+      rows[r++] = -(g + 1);
+      for (let i = 0; i < group.count; i++) rows[r++] = group.start + i;
+    });
+    return rows;
+  });
+  const rowCount = $derived(model ? model.length : items.length);
+
+  /** Zeile eines Eintrags (Kopfzeilen davor mitgezählt). */
+  function rowOf(index: number): number {
+    if (groups.length === 0) return index;
+    let low = 0;
+    let high = groups.length - 1;
+    while (low < high) {
+      const mid = (low + high + 1) >> 1;
+      if (groups[mid].start <= index) low = mid;
+      else high = mid - 1;
+    }
+    return index + low + 1;
+  }
+
   const start = $derived(Math.max(0, Math.floor((scrollTop - PAD_TOP) / ROW) - OVERSCAN));
-  const end = $derived(Math.min(items.length, Math.ceil((scrollTop + height) / ROW) + OVERSCAN));
-  const rows = $derived(items.slice(start, end));
+  const end = $derived(Math.min(rowCount, Math.ceil((scrollTop + height) / ROW) + OVERSCAN));
+  const slice = $derived.by(() => {
+    const out: { key: string; index: number; group: number }[] = [];
+    for (let r = start; r < end; r++) {
+      const v = model ? model[r] : r;
+      if (v < 0) out.push({ key: `g:${groups[-v - 1].id}`, index: -1, group: -v - 1 });
+      else out.push({ key: `e:${items[v].name}`, index: v, group: -1 });
+    }
+    return out;
+  });
+
+  const lasso = new Lasso({
+    container: () => viewport,
+    pane: () => pane,
+    hit(rect) {
+      const first = Math.max(0, Math.floor((rect.top - HEAD - PAD_TOP) / ROW));
+      const last = Math.min(rowCount - 1, Math.floor((rect.bottom - HEAD - PAD_TOP) / ROW));
+      const out: number[] = [];
+      for (let r = first; r <= last; r++) {
+        const v = model ? model[r] : r;
+        if (v >= 0) out.push(v);
+      }
+      return out;
+    },
+  });
   // Programmatisch gesetzte Auswahl (neuer Ordner, Einfügen, Umbenennen) ins Bild holen.
   $effect(() => {
     void pane.scrollSignal;
@@ -53,7 +106,7 @@
 
   function reveal(index: number) {
     if (!viewport || index < 0) return;
-    const top = PAD_TOP + index * ROW;
+    const top = PAD_TOP + rowOf(index) * ROW;
     const visible = height - HEAD;
     if (top < viewport.scrollTop) viewport.scrollTop = Math.max(0, top - PAD_TOP);
     else if (top + ROW > viewport.scrollTop + visible) {
@@ -185,6 +238,7 @@
   bind:clientHeight={height}
   onscroll={() => (scrollTop = viewport?.scrollTop ?? 0)}
   onkeydown={onKeydown}
+  onpointerdown={lasso.pointerDown}
   oncontextmenu={onBackgroundContext}
   class:drop={dnd.isHover(pane.path) && !pane.error}
   data-drop={pane.error ? undefined : pane.path}
@@ -211,14 +265,28 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="spacer"
-      style:height="{items.length * ROW + PAD_TOP + PAD_BOTTOM}px"
+      style:height="{rowCount * ROW + PAD_TOP + PAD_BOTTOM}px"
       role="presentation"
-      onclick={onBackgroundClick}
+      onclick={(event) => lasso.consumedClick() || onBackgroundClick(event)}
     >
       {#key pane.revision}
         <div class="window" style:transform="translateY({start * ROW}px)" role="presentation">
-          {#each rows as entry, i (entry.name)}
-            {@const index = start + i}
+          {#each slice as r (r.key)}
+            {#if r.group >= 0}
+              {@const group = groups[r.group]}
+              <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+              <div
+                class="ghead"
+                role="rowheader"
+                title={t('group.selectAll', { count: group.count })}
+                onclick={(event) => pane.selectGroup(group, event.ctrlKey)}
+              >
+                <b>{group.label}</b>
+                <span>{group.count}</span>
+              </div>
+            {:else}
+            {@const index = r.index}
+            {@const entry = items[index]}
             {@const sync = onedrive.stateOf(entry, pane.path)}
             <!-- Der Fokus liegt immer auf dem Raster, nie auf einzelnen Zeilen. -->
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions, a11y_interactive_supports_focus -->
@@ -262,15 +330,26 @@
                 {/if}
               </span>
             </div>
+            {/if}
           {/each}
         </div>
       {/key}
     </div>
+    {#if lasso.rect}
+      <div
+        class="lasso"
+        style:left="{lasso.rect.left}px"
+        style:top="{lasso.rect.top}px"
+        style:width="{lasso.rect.right - lasso.rect.left}px"
+        style:height="{lasso.rect.bottom - lasso.rect.top}px"
+      ></div>
+    {/if}
   {/if}
 </div>
 
 <style>
   .viewport {
+    user-select: none;
     flex: 1;
     min-height: 0;
     position: relative;
@@ -351,6 +430,28 @@
       opacity: 0;
       margin-top: 4px;
     }
+  }
+
+  .ghead {
+    height: 34px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    user-select: none;
+    cursor: default;
+  }
+
+  .ghead b {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .ghead span {
+    color: var(--muted);
+    font-size: 12px;
   }
 
   .row {

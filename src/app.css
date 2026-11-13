@@ -360,3 +360,13 @@ button {
     animation-duration: 0ms !important;
   }
 }
+
+/* Gummiband-Auswahl (Liste, Kacheln, Spalten) */
+.lasso {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}

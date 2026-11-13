@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ArrowDownWideNarrow, Check } from '@lucide/svelte';
   import { t, type MessageKey } from '../i18n';
+  import { GROUP_KEYS } from '../grouping';
   import type { Pane, SortKey } from '../stores/pane.svelte';
 
   let { pane }: { pane: Pane } = $props();
@@ -68,6 +69,40 @@
           {t(ascending ? 'sort.ascending' : 'sort.descending')}
         </button>
       {/each}
+      {#if pane.view === 'list' || pane.view === 'grid'}
+        <div class="msep"></div>
+        <div class="mh">{t('group.title')}</div>
+        {#each GROUP_KEYS as key (key)}
+          <button
+            class="mi"
+            role="menuitemradio"
+            aria-checked={pane.groupKey === key}
+            onclick={() => {
+              pane.setGroup(key);
+              open = false;
+            }}
+          >
+            <span class="check" class:off={pane.groupKey !== key}><Check size={16} strokeWidth={1.7} /></span>
+            {t(`group.${key}`)}
+          </button>
+        {/each}
+        {#if pane.groupKey !== 'none'}
+          {#each [true, false] as ascending (ascending)}
+            <button
+              class="mi"
+              role="menuitemradio"
+              aria-checked={pane.groupAsc === ascending}
+              onclick={() => {
+                pane.setGroupDirection(ascending);
+                open = false;
+              }}
+            >
+              <span class="check" class:off={pane.groupAsc !== ascending}><Check size={16} strokeWidth={1.7} /></span>
+              {t(ascending ? 'group.ascending' : 'group.descending')}
+            </button>
+          {/each}
+        {/if}
+      {/if}
       <div class="msep"></div>
       <button
         class="mi"
@@ -144,6 +179,13 @@
 
   .check.off {
     visibility: hidden;
+  }
+
+  .mh {
+    padding: 6px 10px 2px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
   }
 
   .msep {

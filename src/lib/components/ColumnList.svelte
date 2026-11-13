@@ -3,6 +3,7 @@
   import { errorText, t } from '../i18n';
   import { joinPath } from '../paths';
   import { createItemActions } from '../itemActions';
+  import { Lasso } from '../lasso.svelte';
   import { dnd } from '../stores/dnd.svelte';
   import { onedrive } from '../stores/onedrive.svelte';
   import { ops } from '../stores/ops.svelte';
@@ -43,6 +44,18 @@
     () => items,
   );
 
+  const lasso = new Lasso({
+    container: () => viewport,
+    pane: () => pane,
+    hit(rect) {
+      const first = Math.max(0, Math.floor((rect.top - PAD) / ROW));
+      const last = Math.min(items.length - 1, Math.floor((rect.bottom - PAD) / ROW));
+      const out: number[] = [];
+      for (let i = first; i <= last; i++) out.push(i);
+      return out;
+    },
+  });
+
   $effect(() => {
     void pane.scrollSignal;
     if (pane.cursor >= 0) reveal(pane.cursor);
@@ -82,7 +95,10 @@
   bind:clientHeight={height}
   onscroll={() => (scrollTop = viewport?.scrollTop ?? 0)}
   onfocusin={onfocus}
-  onpointerdown={onfocus}
+  onpointerdown={(event) => {
+    onfocus();
+    lasso.pointerDown(event);
+  }}
   onkeydown={handleKey}
   oncontextmenu={onBackgroundContext}
   tabindex="0"
@@ -101,7 +117,7 @@
       class="spacer"
       style:height="{items.length * ROW + PAD * 2}px"
       role="presentation"
-      onclick={actions.backgroundClick}
+      onclick={(event) => lasso.consumedClick() || actions.backgroundClick(event)}
     >
       {#key pane.revision}
         <div class="window" style:transform="translateY({PAD + start * ROW}px)" role="presentation">
@@ -142,11 +158,21 @@
         </div>
       {/key}
     </div>
+    {#if lasso.rect}
+      <div
+        class="lasso"
+        style:left="{lasso.rect.left}px"
+        style:top="{lasso.rect.top}px"
+        style:width="{lasso.rect.right - lasso.rect.left}px"
+        style:height="{lasso.rect.bottom - lasso.rect.top}px"
+      ></div>
+    {/if}
   {/if}
 </div>
 
 <style>
   .col {
+    user-select: none;
     width: 232px;
     flex: none;
     position: relative;

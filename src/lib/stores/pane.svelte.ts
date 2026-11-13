@@ -1,4 +1,5 @@
 import { getApi, toApiError, type ApiError, type Entry } from '../api';
+import { dateBoundaries, groupOf, type Group, type GroupInfo, type GroupKey } from '../grouping';
 import { locale } from '../i18n';
 import { extension, joinPath, NETWORK_PATH, parentPath, samePath, splitPath } from '../paths';
 import { ColumnsState } from './columns.svelte';
@@ -27,6 +28,9 @@ export class Pane {
   sortAsc = $state(true);
   filter = $state('');
   view = $state<ViewMode>('list');
+  /** Gruppierung in Liste und Kacheln. */
+  groupKey = $state<GroupKey>('none');
+  groupAsc = $state(true);
   /** Zustand der Baumansicht dieses Tabs. */
   readonly tree = new TreeState();
   /** Zustand der Spaltenansicht dieses Tabs. */
@@ -86,7 +90,8 @@ export class Pane {
     this.showHidden ? 0 : this.entries.reduce((n, e) => n + (e.hidden ? 1 : 0), 0),
   );
 
-  readonly visible: Entry[] = $derived.by(() => {
+  /** Sortierte, gefilterte und ggf. gruppierte Einträge samt Gruppen. */
+  readonly #sorted: { list: Entry[]; groups: Group[] } = $derived.by(() => {
     const needle = this.filter.trim().toLowerCase();
     const showHidden = this.showHidden;
     const list = this.entries.filter(
@@ -96,7 +101,23 @@ export class Pane {
     const sorter: Pane = this.host ?? this;
     const direction = sorter.sortAsc ? 1 : -1;
     const key = sorter.sortKey;
-    return list.sort((a, b) => {
+
+    // Gruppiert wird nur in Liste und Kacheln.
+    const groupKey = this.groupKey;
+    const grouped = groupKey !== 'none' && !this.host && (this.view === 'list' || this.view === 'grid');
+    const bounds = dateBoundaries(Date.now());
+    const infos = grouped ? new Map<Entry, GroupInfo>(list.map((e) => [e, groupOf(e, groupKey, bounds)])) : null;
+    const groupDirection = this.groupAsc ? 1 : -1;
+
+    list.sort((a, b) => {
+      if (infos) {
+        const ga = infos.get(a);
+        const gb = infos.get(b);
+        if (ga && gb && ga.id !== gb.id) {
+          const byGroup = ga.order - gb.order || collator.compare(ga.label, gb.label);
+          if (byGroup !== 0) return byGroup * groupDirection;
+        }
+      }
       // Ordner stehen unabhängig von der Sortierrichtung oben.
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
       let result = 0;
@@ -107,7 +128,23 @@ export class Pane {
       // Bei Gleichstand nach Name; die Richtung gilt dafür nur, wenn nach Name sortiert wird.
       return collator.compare(a.name, b.name) * (key === 'name' ? direction : 1);
     });
+
+    const groups: Group[] = [];
+    if (infos) {
+      list.forEach((entry, index) => {
+        const info = infos.get(entry);
+        if (!info) return;
+        const last = groups.at(-1);
+        if (last && last.id === info.id) last.count++;
+        else groups.push({ id: info.id, label: info.label, start: index, count: 1 });
+      });
+    }
+    return { list, groups };
   });
+
+  readonly visible: Entry[] = $derived(this.#sorted.list);
+  /** Gruppen von `visible` in Reihenfolge; leer ohne Gruppierung. */
+  readonly groups: Group[] = $derived(this.#sorted.groups);
 
   /** Öffnet einen Ordner und legt einen Verlaufseintrag an. */
   navigate(path: string): Promise<void> {
@@ -256,6 +293,41 @@ export class Pane {
       this.sortAsc = key === 'name' || key === 'type';
     }
     this.#resetSelection();
+  }
+
+  setGroup(key: GroupKey): void {
+    if (this.groupKey === key) return;
+    this.groupKey = key;
+    this.#resetSelection();
+    this.revision++;
+  }
+
+  setGroupDirection(ascending: boolean): void {
+    if (this.groupAsc === ascending) return;
+    this.groupAsc = ascending;
+    this.#resetSelection();
+  }
+
+  /** Markiert alle Einträge einer Gruppe (mit `add` zusätzlich zur bisherigen Auswahl). */
+  selectGroup(group: Group, add = false): void {
+    const items = this.visible;
+    const next = new Set(add ? this.selected : []);
+    for (let i = group.start; i < group.start + group.count; i++) next.add(items[i].name);
+    this.selected = next;
+    this.cursor = group.start;
+    this.#anchor = group.start;
+  }
+
+  /** Setzt die Auswahl auf die Einträge mit diesen Indizes (Gummiband); `base` bleibt zusätzlich markiert. */
+  setSelection(indices: number[], base: ReadonlySet<string> | null = null): void {
+    const items = this.visible;
+    const next = new Set(base ?? []);
+    for (const index of indices) if (items[index]) next.add(items[index].name);
+    this.selected = next;
+    if (indices.length > 0) {
+      this.cursor = indices[indices.length - 1];
+      this.#anchor = indices[0];
+    }
   }
 
   /** Auswahl per Maus: einfach, Strg (umschalten), Umschalt (Bereich). */

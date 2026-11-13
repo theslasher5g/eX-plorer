@@ -113,6 +113,8 @@ und Thumbnails steht aus.
 | In andere Programme ziehen | Ausgewählte Dateien aus der Liste ziehen |
 | Datei öffnen | Doppelklick oder Eingabetaste (ausführbare Typen erst nach Rückfrage) |
 | Schnellvorschau | Leertaste; Pfeiltasten wechseln die Datei, Bild auf/ab bei PDF-Seiten, Esc oder Leertaste schließen |
+| Gruppieren | Sortier-Menü → „Gruppieren nach“ (Liste und Kacheln); Klick auf eine Gruppenkopfzeile wählt die Gruppe |
+| Mehrere Dateien ziehend wählen | Maustaste auf freier Fläche drücken und ziehen; Strg/Umschalt behalten die Auswahl |
 | Ansicht wechseln | Strg+1 Liste, Strg+2 Kacheln, Strg+3 Spalten, Strg+4 Baum, oder der Umschalter in der Werkzeugleiste |
 | Spalten bedienen | Klick auf einen Ordner öffnet ihn rechts daneben, Klick auf eine Datei zeigt die Vorschau; Pfeil auf/ab wählt, Pfeil rechts/links wechselt die Spalte, Eingabetaste bzw. Doppelklick öffnet (Ordner: der Tab wechselt dorthin) |
 | Baum bedienen | Pfeil rechts/links klappt auf/zu, Eingabetaste öffnet, Klick auf „… und N weitere“ lädt nach |
@@ -340,10 +342,25 @@ src/
   Thumbnail. Die Breadcrumb zeigt den Ordner der ersten Spalte, nicht den
   der tiefsten. Die Spaltenbreite ist fest. Alle offenen Spalten werden
   live beobachtet (insgesamt höchstens 64 Ordner über alle Tabs).
-- **Es fehlen** die Gruppierung aus den Anforderungen
-  sowie der Netzwerk-Eintrag der Seitenleiste. Die Einstellungen umfassen
-  bisher versteckte Dateien, Kachelgröße und die Baum-Limits; ein manueller
-  Hell/Dunkel-Schalter fehlt (die App folgt Windows).
+- **Gruppierung** (Sortier-Menü, „Gruppieren nach“) gibt es in Liste und
+  Kacheln: nach Name (Anfangsbuchstabe), Typ, Änderungsdatum (Heute, Gestern,
+  Diese Woche … wie im Explorer) und Größe (Leer bis Gigantisch, Ordner
+  getrennt), aufsteigend oder absteigend. Ein Klick auf eine Gruppenkopfzeile
+  markiert die ganze Gruppe (Strg: zusätzlich). Gruppen lassen sich nicht
+  einklappen, und in Spalten- und Baumansicht gibt es keine Gruppierung. Die
+  Gruppe gilt pro Tab und wird nicht gespeichert. Die Datumsgruppen beziehen
+  sich auf den Moment der Berechnung (Mitternacht ändert sie erst beim
+  nächsten Sortieren oder Laden).
+- **Gummiband-Auswahl:** In Liste, Kacheln und Spalten wählt Ziehen mit der
+  Maus auf freier Fläche alles aus, was das Rechteck berührt; Strg oder
+  Umschalt behalten die bisherige Auswahl. Am oberen/unteren Rand scrollt die
+  Fläche mit (auch in sehr langen Ordnern). In der Liste zählen Zeilen ab dem
+  Berühren in der Höhe, das Rechteck muss die Zeile also nicht an ihrem Namen
+  treffen. Das Ziehen beginnt nur auf freier Fläche; von einer Zeile aus
+  startet wie bisher das Ziehen der Dateien.
+- **Es fehlt:** ein manueller Hell/Dunkel-Schalter (die App folgt Windows).
+  Die Einstellungen umfassen bisher versteckte Dateien, Kachelgröße und die
+  Baum-Limits.
 - **Die Ansicht gilt pro Tab** und wird nicht gespeichert; neue Tabs starten
   in der Liste.
 - **Symbole sind gezeichnet, nicht von Windows**: Ordnersymbol und farbige
@@ -396,5 +413,5 @@ src/
 6. ✅ Netzlaufwerke
 7. ✅ Feinschliff: Messwerte, Tests, Sicherheitsdurchsicht, Installer
 
-Noch keiner Phase zugeordnet, aber in den Anforderungen vorhanden: Gruppierung.
-Die Spaltenansicht ist vor Phase 7 dazugekommen.
+Nach Phase 7 dazugekommen: Spaltenansicht, Kontextmenü im eigenen Stil,
+Gruppierung und Gummiband-Auswahl.
