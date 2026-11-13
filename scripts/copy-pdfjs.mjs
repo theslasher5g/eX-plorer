@@ -7,7 +7,7 @@ const source = new URL('node_modules/pdfjs-dist/', root);
 const target = new URL('public/pdfjs/', root);
 
 if (!existsSync(source)) {
-  console.error('pdfjs-dist fehlt. Bitte zuerst "npm install" ausführen.');
+  console.error('pdfjs-dist is missing. Run "npm install" first.');
   process.exit(1);
 }
 rmSync(target, { recursive: true, force: true });

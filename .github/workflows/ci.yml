@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   windows:
-    name: Prüfen und bauen (Windows)
+    name: Check and build (Windows)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,13 +32,13 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Frontend-Abhängigkeiten
+      - name: Frontend dependencies
         run: npm ci
 
-      - name: Frontend prüfen (svelte-check)
+      - name: Check frontend (svelte-check)
         run: npm run check
 
-      - name: Frontend bauen
+      - name: Build frontend
         run: npm run build
 
       - name: rustfmt
@@ -61,7 +61,7 @@ jobs:
         working-directory: src-tauri
         run: cargo audit
 
-      - name: Installer bauen (NSIS + MSI)
+      - name: Build installers (NSIS + MSI)
         run: npx tauri build
 
       - uses: actions/upload-artifact@v4
