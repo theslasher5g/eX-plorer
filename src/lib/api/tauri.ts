@@ -9,6 +9,7 @@ import type {
   Entry,
   ListSummary,
   MenuItem,
+  OneDriveFinding,
   SearchSummary,
   MenuOpened,
   MenuOutcome,
@@ -56,8 +57,9 @@ export const tauriApi: Api = {
       });
     }),
   previewInfo: (path) => invoke<PreviewInfo>('preview_info', { path }),
-  previewBytes: (path) => invoke<ArrayBuffer>('preview_bytes', { path }),
-  previewText: (path) => invoke<TextContent>('preview_text', { path }),
+  previewBytes: (path, download = false) => invoke<ArrayBuffer>('preview_bytes', { path, download }),
+  previewText: (path, download = false) => invoke<TextContent>('preview_text', { path, download }),
+  onedriveDiagnose: () => invoke<OneDriveFinding[]>('onedrive_diagnose'),
   menuOpen: (paths, folder, newTabLabel, extras) =>
     invoke<MenuOpened>('menu_open', { paths, folder, newTabLabel, extras }),
   menuSubmenu: (session, path) => invoke<MenuItem[]>('menu_submenu', { session, path }),

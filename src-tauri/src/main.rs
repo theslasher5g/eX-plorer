@@ -38,6 +38,7 @@ fn main() {
                 net_timeout_secs: std::sync::atomic::AtomicU32::new(
                     explorer_core::settings::NET_TIMEOUT_DEFAULT,
                 ),
+                extra_onedrive: Mutex::default(),
             });
             Ok(())
         })
@@ -64,6 +65,7 @@ fn main() {
             commands::menu::menu_close,
             commands::menu::open_item,
             commands::onedrive::onedrive_set_pinned,
+            commands::onedrive::onedrive_diagnose,
             commands::network::network_drives,
             commands::network::network_probe,
             commands::network::network_connect,

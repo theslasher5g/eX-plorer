@@ -199,9 +199,12 @@ src/
   stores nothing: `WNetAddConnection3W` opens the Windows dialog and, if you wish,
   stores the data in the Credential Manager. This deliberately differs from the
   sign-in dialog in the design, which shows fields in the app.
-- **Cloud placeholders are never read.** For "cloud only" files (OneDrive) the
-  backend creates neither icons nor thumbnails nor previews; the attributes are
-  checked beforehand via metadata. The same applies to icons on network paths.
+- **Cloud placeholders are never read automatically.** For "cloud only" files
+  (OneDrive) the backend creates neither icons nor thumbnails, and quick look does not
+  read them; the attributes are checked beforehand via metadata. The same applies to
+  icons on network paths. The one exception is an explicit click on "Download and show"
+  in quick look, which reads the file (within the preview size limits, checked before
+  the file is opened) and makes OneDrive download it.
 - **Previews are limited:** images up to 40 MiB, PDF up to 64 MiB, text the first
   256 KiB. SVG is shown as text, never as an image, so nothing can be executed.
   Text is displayed via `textContent`, never as HTML.
@@ -302,6 +305,12 @@ src/
   becomes copy or move is decided by the app: same drive moves, another drive copies,
   and Ctrl and Shift override that. The Explorer therefore does not delete the source
   itself.
+- **Short "access denied" errors:** a listing that fails with "access denied" or "in
+  use" (often while OneDrive syncs, an antivirus scans, or a folder is being deleted) is
+  retried once before the error is shown; background refreshes (watcher, returning to
+  the window) retry up to three times and, if that still fails, keep the current listing
+  instead of replacing it with an error. A folder that is permanently locked still shows
+  the error after the retry.
 - **Live updates** only watch the folders of the open tabs, not recursively and not on
   network drives (F5 helps there). Very many quick changes are batched; the display
   can lag by fractions of a second.
@@ -394,14 +403,24 @@ src/
 - **Tabs** remember path, history, view, sorting, and selection, but not the scroll
   position, and are not saved on exit.
 - **OneDrive:**
-  - Accounts come from the registry (`HKCU\Software\Microsoft\OneDrive\Accounts`) and
-    the environment variables `OneDrive`, `OneDriveConsumer`, `OneDriveCommercial`,
-    without duplicates. SharePoint folders synced as libraries outside the account
-    folder are not detected.
+  - Accounts come from the registry (`HKCU\Software\Microsoft\OneDrive\Accounts`), the
+    environment variables `OneDrive`, `OneDriveConsumer`, `OneDriveCommercial`, and, as a
+    fallback, folders named `OneDrive…` directly in the user profile, without duplicates.
+    SharePoint folders synced as libraries outside the account folder are not detected.
+    If an account is still missing, add its folder by hand under *Settings → OneDrive*
+    ("Add OneDrive folder"); "Show detection" lists every source that was checked and what
+    became of it.
   - The status appears in the type column (list) or as a corner mark (tiles), not in
-    the tree view. "Syncing" also applies to normal files in the OneDrive folder that
-    the client has not converted yet; hidden and system files (desktop.ini) have no
-    status. If OneDrive is paused, an entry stays "Syncing …" for that long.
+    the tree view. Windows reports "Syncing" for files that are not in sync and for files
+    marked "Always keep" that are not downloaded yet. A normal file (not a cloud
+    placeholder, for example when Files On-Demand is off) shows "On this device".
+    Folders only show "Cloud only"/"On this device", never "Syncing"; hidden and system
+    files (desktop.ini) have no status. If OneDrive is paused, an entry stays "Syncing …"
+    for that long.
+  - **Quick look for cloud-only files** shows an explanation and a "Download and show"
+    button. Only that click makes the app read the file; the file then stays on the
+    device until OneDrive frees the space again. Files above the preview limits are
+    refused before anything is downloaded.
   - The two actions appear in the context menu; if OneDrive already has them in its
     own menu (labeled in German or English), the app does not insert them. With another
     Windows language they may appear twice.

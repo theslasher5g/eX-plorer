@@ -39,6 +39,7 @@ pub async fn settings_get(
     })
     .await?;
     state.set_net_timeout(loaded.network_timeout_secs);
+    state.set_extra_onedrive(loaded.extra_onedrive.clone());
     Ok(loaded)
 }
 
@@ -65,5 +66,6 @@ pub async fn settings_set(
     })
     .await?;
     state.set_net_timeout(saved.network_timeout_secs);
+    state.set_extra_onedrive(saved.extra_onedrive.clone());
     Ok(saved)
 }

@@ -1,4 +1,5 @@
 import { getApi, type Settings, type Theme } from '../api';
+import { onedrive } from './onedrive.svelte';
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
@@ -13,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tileSize: 132,
   servers: [],
   favorites: [],
+  extraOnedrive: [],
 };
 
 /** Grenzen der Regler; das Backend erzwingt dieselben Werte noch einmal. */
@@ -75,6 +77,31 @@ class SettingsStore {
   }
 
   /** Stellt die Standardwerte des Bereichs wieder her, andere Bereiche und die Serverliste nicht. */
+  /** Speichert sofort (nicht erst nach der Ruhepause) und wartet darauf. */
+  async flush(): Promise<void> {
+    clearTimeout(this.#timer);
+    try {
+      this.value = await (await getApi()).settingsSet(this.value);
+    } catch {
+      // Gespeichert wird beim nächsten Änderungsversuch erneut.
+    }
+  }
+
+  /** Fügt einen OneDrive-Ordner von Hand hinzu und lädt die Konten neu. */
+  async addOneDrive(folder: string): Promise<void> {
+    const path = folder.trim().replace(/^"(.*)"$/, '$1');
+    if (!path) return;
+    this.update({ extraOnedrive: [...this.value.extraOnedrive, path] });
+    await this.flush();
+    await onedrive.reload();
+  }
+
+  async removeOneDrive(folder: string): Promise<void> {
+    this.update({ extraOnedrive: this.value.extraOnedrive.filter((f) => f.toLowerCase() !== folder.toLowerCase()) });
+    await this.flush();
+    await onedrive.reload();
+  }
+
   reset(section: SettingsSection): void {
     const patch: Record<string, unknown> = {};
     for (const key of SECTION_KEYS[section]) patch[key] = DEFAULT_SETTINGS[key];

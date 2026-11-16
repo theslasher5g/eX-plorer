@@ -195,13 +195,18 @@ export class Pane {
     return parent ? this.navigate(parent) : Promise.resolve();
   }
 
-  refresh(): Promise<void> {
+  /**
+   * Lädt den Ordner neu. `quiet` (Überwachung, Rückkehr ins Fenster): Schlägt es
+   * vorübergehend fehl, bleibt die bisherige Anzeige stehen, statt durch einen
+   * Fehler ersetzt zu werden.
+   */
+  refresh(quiet = false): Promise<void> {
     if (this.path === NETWORK_PATH) {
       // Die Netzwerk-Seite prüft bei jedem Wechsel dieses Zählers neu.
       this.revision++;
       return Promise.resolve();
     }
-    return this.path ? this.#load(this.path, true) : Promise.resolve();
+    return this.path ? this.#load(this.path, true, quiet) : Promise.resolve();
   }
 
   /** Öffnet einen Ordner (in Spalten: im Tab, zu dem die Spalte gehört). */
@@ -209,7 +214,7 @@ export class Pane {
     if (entry.isDir) void (this.host ?? this).navigate(joinPath(this.path, entry.name));
   }
 
-  async #load(target: string, keepSelection = false): Promise<void> {
+  async #load(target: string, keepSelection = false, quiet = false): Promise<void> {
     const generation = ++this.#generation;
     this.error = null;
     this.path = target;
@@ -231,6 +236,7 @@ export class Pane {
     // einen scheinbar leeren Ordner zu zeigen.
     for (let attempt = 0; attempt < LOAD_ATTEMPTS; attempt++) {
       const collected: Entry[] = [];
+      let retry = false;
       try {
         const api = await getApi();
         const summary = await api.listDir(target, (batch) => {
@@ -247,29 +253,45 @@ export class Pane {
         if (generation !== this.#generation) return;
         if (collected.length !== summary.count) {
           lastError = new Error('incomplete listing');
-          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-          if (generation !== this.#generation) return;
-          continue;
+          retry = true;
+        } else {
+          // Der Verlauf merkt sich die vom Backend normalisierte Schreibweise.
+          this.path = summary.path;
+          const history = this.#history.slice();
+          history[this.#index] = summary.path;
+          this.#history = history;
+          this.#show(collected, keepSelection || shown, true);
+          this.loadedAt = Date.now();
+          this.loading = false;
+          return;
         }
-        // Der Verlauf merkt sich die vom Backend normalisierte Schreibweise.
-        this.path = summary.path;
-        const history = this.#history.slice();
-        history[this.#index] = summary.path;
-        this.#history = history;
-        this.#show(collected, keepSelection || shown, true);
-        this.loadedAt = Date.now();
-        this.loading = false;
-        return;
       } catch (err) {
         if (generation !== this.#generation) return;
         lastError = err;
-        // Verlorene Kanalmeldungen sind vorübergehend; echte Fehler sofort zeigen.
-        if (toApiError(err).code !== 'io') break;
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-        if (generation !== this.#generation) return;
+        const code = toApiError(err).code;
+        // Verlorene Kanalmeldungen („io“) sind vorübergehend. „Zugriff verweigert“
+        // und „in Benutzung“ sind es oft auch (Synchronisierung, Virenscanner,
+        // gerade gelöschter Ordner) und verschwinden beim zweiten Versuch.
+        const transient = code === 'io' || code === 'access_denied' || code === 'busy';
+        // Ein dauerhaft gesperrter Ordner soll nicht lange warten: dort nur ein zweiter Versuch.
+        const limit = code === 'access_denied' && !quiet ? 2 : LOAD_ATTEMPTS;
+        if (!transient || attempt + 1 >= limit) break;
+        retry = true;
       }
+      if (!retry || attempt + 1 >= LOAD_ATTEMPTS) break;
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      if (generation !== this.#generation) return;
     }
     if (generation !== this.#generation) return;
+    // Beim stillen Aktualisieren die bisherige Anzeige behalten; der nächste
+    // Anlass (Überwachung, Fokus, F5) lädt erneut.
+    const failure = toApiError(lastError).code;
+    const temporary =
+      failure === 'io' || failure === 'access_denied' || failure === 'busy' || (lastError instanceof Error && lastError.message === 'incomplete listing');
+    if (quiet && temporary && this.entries.length > 0) {
+      this.loading = false;
+      return;
+    }
     this.entries = [];
     this.#pendingSelect = null;
     this.renaming = null;

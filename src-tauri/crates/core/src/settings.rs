@@ -50,11 +50,14 @@ pub struct Settings {
     pub servers: Vec<String>,
     /// An die Seitenleiste angeheftete Ordner („Schnellzugriff“).
     pub favorites: Vec<String>,
+    /// Vom Benutzer hinzugefügte OneDrive-Ordner, falls die Erkennung einen übersieht.
+    pub extra_onedrive: Vec<String>,
 }
 
 /// Mehr hinzugefügte Server sind unrealistisch.
 pub const MAX_SERVERS: usize = 20;
 pub const MAX_FAVORITES: usize = 40;
+pub const MAX_EXTRA_ONEDRIVE: usize = 10;
 
 pub const NET_TIMEOUT_MIN: u32 = 5;
 pub const NET_TIMEOUT_MAX: u32 = 60;
@@ -78,6 +81,7 @@ impl Default for Settings {
             tile_size: 132,
             servers: Vec::new(),
             favorites: Vec::new(),
+            extra_onedrive: Vec::new(),
         }
     }
 }
@@ -119,6 +123,22 @@ impl Settings {
         }
         favorites.truncate(MAX_FAVORITES);
         self.favorites = favorites;
+        // Zusätzliche OneDrive-Ordner: gültig, kein Laufwerksstamm, ohne Doppelte.
+        let mut extra: Vec<String> = Vec::new();
+        for raw in &self.extra_onedrive {
+            let Ok(path) = validate_path(raw) else {
+                continue;
+            };
+            if path.is_root() {
+                continue;
+            }
+            let path = path.into_string();
+            if extra.iter().all(|f| !f.eq_ignore_ascii_case(&path)) {
+                extra.push(path);
+            }
+        }
+        extra.truncate(MAX_EXTRA_ONEDRIVE);
+        self.extra_onedrive = extra;
         self
     }
 
@@ -233,5 +253,21 @@ mod tests {
         }
         .sanitized();
         assert_eq!(many.favorites.len(), MAX_FAVORITES);
+    }
+
+    #[test]
+    fn sanitizes_extra_onedrive_folders() {
+        let s = Settings {
+            extra_onedrive: vec![
+                r"D:\Sync\OneDrive - Firma".into(),
+                r"d:\sync\onedrive - firma".into(),
+                r"C:\".into(),
+                "relativ".into(),
+                r"C:\..\x".into(),
+            ],
+            ..Settings::default()
+        }
+        .sanitized();
+        assert_eq!(s.extra_onedrive, [r"D:\Sync\OneDrive - Firma"]);
     }
 }

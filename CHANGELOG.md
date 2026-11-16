@@ -7,6 +7,20 @@ versions may still change things.
 
 ## [Unreleased]
 
+### Fixed
+
+- OneDrive: files that are not cloud placeholders no longer show "Syncing"; they show
+  "On this device". Folders never show "Syncing".
+- Short "access denied" errors that disappeared on their own: listings are retried, and
+  background refreshes keep the current listing instead of showing an error.
+- Settings dialog: Esc closes the dialog even after a clicked button disappeared.
+
+### Added
+
+- Quick look for cloud-only OneDrive files: an explicit "Download and show" button.
+- OneDrive accounts: fallback detection in the user profile, manual folders under
+  Settings → OneDrive, and a detection overview that shows what was checked.
+
 ## [0.1.0] - 2026-11-13
 
 First public release.

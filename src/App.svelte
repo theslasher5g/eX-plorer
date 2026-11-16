@@ -52,14 +52,18 @@ import { dialogs } from './lib/stores/dialog.svelte';
       document.documentElement.dataset.material = info.material;
       home = info.homeDir;
       void pane.navigate(home);
-      sidebar = await api.sidebar();
-      onedrive.setRoots(sidebar.onedrive.map((place) => place.path));
-      onedrive.accounts = sidebar.onedrive;
+      const loadSidebar = async () => {
+        sidebar = await api.sidebar();
+        onedrive.setRoots(sidebar.onedrive.map((place) => place.path));
+        onedrive.accounts = sidebar.onedrive;
+      };
+      onedrive.reloadHook = loadSidebar;
+      await loadSidebar();
 
       // Änderungen im Dateisystem (auch von anderen Programmen) nachladen.
       keep(
         await api.onDirChanged((dir) => {
-          for (const p of tabs.livePanes) if (samePath(p.path, dir)) void p.refresh();
+          for (const p of tabs.livePanes) if (samePath(p.path, dir)) void p.refresh(true);
         }),
       );
       keep(await dnd.init());
@@ -73,7 +77,7 @@ import { dialogs } from './lib/stores/dialog.svelte';
       void ops.refreshClipboard();
       const stale = Date.now() - WAKE_STALE_MS;
       for (const p of tabs.livePanes) {
-        if (p.path && !p.isNetwork && !p.loading && p.loadedAt < stale) void p.refresh();
+        if (p.path && !p.isNetwork && !p.loading && p.loadedAt < stale) void p.refresh(true);
       }
       const paths = [...new Set(tabs.livePanes.map((p) => p.path).filter(Boolean))];
       void getApi()

@@ -76,11 +76,11 @@ pub struct Sidebar {
     onedrive: Vec<Place>,
 }
 
-pub fn sidebar() -> Sidebar {
+pub fn sidebar(extra_onedrive: &[String]) -> Sidebar {
     Sidebar {
         favorites: favorites(),
         drives: drives(),
-        onedrive: onedrive(),
+        onedrive: onedrive(extra_onedrive),
     }
 }
 
@@ -193,8 +193,8 @@ pub fn is_remote(path: &explorer_core::path::ValidPath) -> bool {
 }
 
 /// Lokale OneDrive-Ordner, ein Eintrag je Konto (Registry und Umgebungsvariablen).
-fn onedrive() -> Vec<Place> {
-    super::onedrive::accounts()
+fn onedrive(extra: &[String]) -> Vec<Place> {
+    super::onedrive::accounts(extra)
         .into_iter()
         .map(|account| Place {
             kind: PlaceKind::OneDrive,

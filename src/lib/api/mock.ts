@@ -8,6 +8,7 @@ import type {
   Entry,
   MenuItem,
   MenuOpened,
+  OneDriveFinding,
   PreviewInfo,
   NetDrive,
   Reachability,
@@ -121,6 +122,7 @@ const tree: Record<string, Entry[]> = {
   '\\\\buchhaltung\\daten': [d('Belege', 1)],
   'E:\\': [f('Foto.jpg', 2_048_000, 4), d('USB-Ordner', 9)],
   'E:\\USB-Ordner': [],
+  [`${HOME}\\OneDrive - Fabrikam`]: [d('Berichte', 3), f('Lies mich.txt', 120, 1)],
   'C:\\Test': [d('100k', 1), d('Leer', 1), d('Tief', 1), d('Viele', 1)],
   'C:\\Test\\Tief': [d('a', 1), d('Verknüpfung', 1, { isLink: true }), f('oben.txt', 10), f('.versteckt', 1, 1, { hidden: true })],
   'C:\\Test\\Tief\\Verknüpfung': [f('ziel.txt', 1)],
@@ -396,11 +398,14 @@ const calls = {
   pin: [] as unknown[],
   native: 0,
   drag: [] as unknown[],
+  previewDownload: [] as boolean[],
   list: 0,
   theme: [] as unknown[],
   invoked: [] as number[],
 };
 let loseBatches = 0;
+/** Test-Hilfe: die nächsten Listenaufrufe schlagen mit diesem Code fehl. */
+let failList: { code: string; count: number } | null = null;
 let menuSession = 0;
 let menuItems: MenuItem[] = [];
 
@@ -409,6 +414,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     __mockCalls: calls,
     __mockMenuNative: () => calls.native,
     __mockLoseBatches: (n: number) => (loseBatches = n),
+    __mockFailList: (code: string, count: number) => (failList = { code, count }),
   });
 }
 
@@ -428,6 +434,7 @@ let settings: Settings = {
   tileSize: 132,
   servers: ['\\\\nas', '\\\\buchhaltung', '\\\\srv-alt'],
   favorites: [],
+  extraOnedrive: [],
 };
 
 // --- Netzwerk (Demo) -------------------------------------------------------
@@ -481,6 +488,14 @@ export const mockApi: Api = {
     return { material: 'solid', homeDir: HOME };
   },
   async sidebar() {
+    const manual = settings.extraOnedrive
+      .filter((folder) => key(folder))
+      .map((folder) => ({
+        kind: 'onedrive' as const,
+        label: folder.slice(folder.lastIndexOf('\\') + 1),
+        path: folder,
+        account: 'business' as const,
+      }));
     return {
       favorites: [
         { kind: 'desktop', label: '', path: `${HOME}\\Desktop` },
@@ -503,6 +518,7 @@ export const mockApi: Api = {
           email: 'anna@contoso.com',
           account: 'business',
         },
+        ...manual,
       ],
     };
   },
@@ -514,6 +530,10 @@ export const mockApi: Api = {
     if (state && state !== 'online') {
       if (state === 'timeout') await sleep(700);
       throw { code: state === 'auth' ? 'auth_required' : state, message: state };
+    }
+    if (failList && failList.count > 0) {
+      failList.count--;
+      throw { code: failList.code, message: failList.code };
     }
     const k = key(normalized);
     const entries = lower(normalized) === 'c:\\test\\100k' ? hugeFolder() : k ? tree[k] : undefined;
@@ -689,17 +709,20 @@ export const mockApi: Api = {
       tooLarge: entry.size > 40 * 1024 * 1024,
     };
   },
-  async previewBytes(path) {
+  async previewBytes(path, download = false) {
     const entry = findByPath(path);
-    if ((entry.attributes & 0x400000) !== 0) fail('cloud_only');
+    calls.previewDownload.push(download);
+    if ((entry.attributes & 0x400000) !== 0 && !download) fail('cloud_only');
     await sleep(60);
     const kind = previewKind(entry.name);
     if (kind === 'image') return demoPng(entry.name);
     if (kind === 'pdf') return demoPdf(entry.name.replace(/\.pdf$/i, ''));
     return fail('unsupported');
   },
-  async previewText(path) {
+  async previewText(path, download = false) {
     const entry = findByPath(path);
+    calls.previewDownload.push(download);
+    if ((entry.attributes & 0x400000) !== 0 && !download) fail('cloud_only');
     if (previewKind(entry.name) !== 'text') fail('unsupported');
     await sleep(40);
     const body = entry.name === 'Notizen.txt'
@@ -719,6 +742,17 @@ export const mockApi: Api = {
     }
     changed(...paths.map((p) => parentOf(norm(p))));
     return paths.length;
+  },
+  async onedriveDiagnose() {
+    const found: OneDriveFinding[] = [
+      { source: 'Registry Personal', folder: `${HOME}\\OneDrive`, outcome: 'accepted' },
+      { source: 'Registry Business1', folder: `${HOME}\\OneDrive - Contoso`, outcome: 'accepted' },
+      { source: '%OneDrive%', folder: `${HOME}\\OneDrive`, outcome: 'duplicate' },
+    ];
+    for (const folder of settings.extraOnedrive) {
+      found.push({ source: 'Manuell', folder, outcome: key(folder) ? 'accepted' : 'missing' });
+    }
+    return found;
   },
   async menuOpen(paths, folder, newTabLabel, extras) {
     calls.menu.push({ paths, folder, newTabLabel, extras });

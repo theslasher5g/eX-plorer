@@ -49,7 +49,16 @@ pub fn is_cloud_reparse_tag(tag: u32) -> bool {
 /// Bestimmt den Sync-Zustand allein aus den Verzeichnisdaten (Attribute,
 /// Reparse-Tag, „in sync“-Flag der Cloud-Files-API). Es wird nichts gelesen
 /// oder heruntergeladen. `None`: kein Cloud-Platzhalter.
-pub fn sync_state(attributes: u32, reparse_tag: u32, in_sync: Option<bool>) -> Option<SyncState> {
+///
+/// Bei Ordnern gilt das „in sync“-Flag nicht: Windows setzt es dort nicht
+/// verlässlich, und es würde fertig synchronisierte Ordner als „wird
+/// synchronisiert“ zeigen.
+pub fn sync_state(
+    attributes: u32,
+    reparse_tag: u32,
+    in_sync: Option<bool>,
+    is_dir: bool,
+) -> Option<SyncState> {
     if attributes & FILE_ATTRIBUTE_REPARSE_POINT == 0 || !is_cloud_reparse_tag(reparse_tag) {
         return None;
     }
@@ -61,7 +70,7 @@ pub fn sync_state(attributes: u32, reparse_tag: u32, in_sync: Option<bool>) -> O
         } else {
             SyncState::Cloud
         }
-    } else if in_sync == Some(false) {
+    } else if in_sync == Some(false) && !is_dir {
         SyncState::Syncing
     } else if pinned {
         SyncState::Pinned
@@ -107,19 +116,38 @@ mod tests {
     #[test]
     fn maps_sync_states() {
         let cloud = PLACEHOLDER | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS;
-        assert_eq!(sync_state(cloud, TAG, Some(true)), Some(SyncState::Cloud));
         assert_eq!(
-            sync_state(cloud | FILE_ATTRIBUTE_UNPINNED, TAG, None),
+            sync_state(cloud, TAG, Some(true), false),
             Some(SyncState::Cloud)
         );
         assert_eq!(
-            sync_state(PLACEHOLDER, TAG, Some(true)),
+            sync_state(cloud | FILE_ATTRIBUTE_UNPINNED, TAG, None, false),
+            Some(SyncState::Cloud)
+        );
+        assert_eq!(
+            sync_state(PLACEHOLDER, TAG, Some(true), false),
             Some(SyncState::Local)
         );
-        assert_eq!(sync_state(PLACEHOLDER, TAG, None), Some(SyncState::Local));
         assert_eq!(
-            sync_state(PLACEHOLDER | FILE_ATTRIBUTE_PINNED, TAG, Some(true)),
+            sync_state(PLACEHOLDER, TAG, None, false),
+            Some(SyncState::Local)
+        );
+        assert_eq!(
+            sync_state(PLACEHOLDER | FILE_ATTRIBUTE_PINNED, TAG, Some(true), false),
             Some(SyncState::Pinned)
+        );
+    }
+
+    #[test]
+    fn folders_ignore_the_in_sync_flag() {
+        assert_eq!(
+            sync_state(PLACEHOLDER, TAG, Some(false), true),
+            Some(SyncState::Local),
+            "ein Ordner ohne „in sync“-Flag ist nicht „wird synchronisiert“"
+        );
+        assert_eq!(
+            sync_state(PLACEHOLDER, TAG, Some(false), false),
+            Some(SyncState::Syncing)
         );
     }
 
@@ -127,32 +155,32 @@ mod tests {
     fn pending_work_means_syncing() {
         // Lokal geändert, noch nicht hochgeladen.
         assert_eq!(
-            sync_state(PLACEHOLDER, TAG, Some(false)),
+            sync_state(PLACEHOLDER, TAG, Some(false), false),
             Some(SyncState::Syncing)
         );
         assert_eq!(
-            sync_state(PLACEHOLDER | FILE_ATTRIBUTE_PINNED, TAG, Some(false)),
+            sync_state(PLACEHOLDER | FILE_ATTRIBUTE_PINNED, TAG, Some(false), false),
             Some(SyncState::Syncing)
         );
         // „Immer behalten“ gesetzt, Inhalt kommt noch.
         let downloading =
             PLACEHOLDER | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS | FILE_ATTRIBUTE_PINNED;
         assert_eq!(
-            sync_state(downloading, TAG, Some(true)),
+            sync_state(downloading, TAG, Some(true), false),
             Some(SyncState::Syncing)
         );
     }
 
     #[test]
     fn non_cloud_entries_have_no_state() {
-        assert_eq!(sync_state(0x20, 0, None), None);
+        assert_eq!(sync_state(0x20, 0, None, false), None);
         assert_eq!(
-            sync_state(FILE_ATTRIBUTE_REPARSE_POINT, 0xA000_0003, None),
+            sync_state(FILE_ATTRIBUTE_REPARSE_POINT, 0xA000_0003, None, false),
             None,
             "Junction"
         );
         // Tag ohne Reparse-Attribut ist Rauschen aus anderen Feldern.
-        assert_eq!(sync_state(0x20, TAG, None), None);
+        assert_eq!(sync_state(0x20, TAG, None, false), None);
     }
 
     #[test]

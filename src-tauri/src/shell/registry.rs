@@ -3,7 +3,7 @@
 use windows::core::{HSTRING, PCWSTR, PWSTR};
 use windows::Win32::System::Registry::{
     RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
-    RRF_RT_REG_SZ,
+    RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ,
 };
 
 /// Längster gelesener Wert in UTF-16-Einheiten; längere werden verworfen.
@@ -84,7 +84,8 @@ pub fn string_value(path: &str, name: &str) -> Option<String> {
             HKEY_CURRENT_USER,
             PCWSTR(subkey.as_ptr()),
             PCWSTR(value.as_ptr()),
-            RRF_RT_REG_SZ,
+            // Auch erweiterbare Zeichenketten (z. B. `%USERPROFILE%\OneDrive`); Windows setzt sie ein.
+            RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ,
             None,
             Some(buffer.as_mut_ptr().cast()),
             Some(&raw mut bytes),

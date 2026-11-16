@@ -8,7 +8,7 @@
 use std::os::windows::fs::MetadataExt;
 
 use explorer_core::attrs::pin_attributes;
-use explorer_core::onedrive::{self, Account, Origin, Raw};
+use explorer_core::onedrive::{self, Account, Finding, Origin, Raw};
 use explorer_core::path::ValidPath;
 use explorer_core::CoreError;
 use windows::core::{HSTRING, PCWSTR};
@@ -20,8 +20,9 @@ use super::registry;
 const ACCOUNTS_KEY: &str = r"Software\Microsoft\OneDrive\Accounts";
 const ENV_VARS: [&str; 3] = ["OneDriveConsumer", "OneDriveCommercial", "OneDrive"];
 
-/// Alle lokalen OneDrive-Ordner (mehrere Konten möglich).
-pub fn accounts() -> Vec<Account> {
+/// Sammelt alle Funde aus Registry, Umgebungsvariablen, Benutzerprofil und den
+/// manuell hinzugefügten Ordnern.
+fn collect(extra: &[String]) -> Vec<Raw> {
     let mut raw = Vec::new();
 
     for key in registry::subkeys(ACCOUNTS_KEY) {
@@ -43,10 +44,30 @@ pub fn accounts() -> Vec<Account> {
             });
         }
     }
+    // Rückfall: Ordner im Benutzerprofil, die wie OneDrive heißen.
+    if let Ok(profile) = std::env::var("USERPROFILE") {
+        raw.extend(onedrive::scan_profile(std::path::Path::new(&profile)));
+    }
+    raw.extend(extra.iter().map(|folder| Raw {
+        origin: Origin::Manual,
+        folder: folder.clone(),
+        email: None,
+    }));
+    raw
+}
 
-    onedrive::merge(raw, &|path| {
-        std::fs::metadata(path.to_extended()).is_ok_and(|m| m.is_dir())
-    })
+fn is_dir(path: &ValidPath) -> bool {
+    std::fs::metadata(path.to_extended()).is_ok_and(|m| m.is_dir())
+}
+
+/// Alle lokalen OneDrive-Ordner (mehrere Konten möglich).
+pub fn accounts(extra: &[String]) -> Vec<Account> {
+    onedrive::merge(collect(extra), &is_dir)
+}
+
+/// Wie `accounts`, aber mit dem Ergebnis jedes Fundes (für die Diagnose).
+pub fn diagnose(extra: &[String]) -> Vec<Finding> {
+    onedrive::merge_with_report(collect(extra), &is_dir).1
 }
 
 /// Setzt „Immer auf diesem Gerät behalten“ (`pinned`) bzw. „Speicherplatz

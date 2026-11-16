@@ -1,5 +1,7 @@
 //! Daten für die Schnellvorschau. Es wird nur gelesen, was der Benutzer
-//! ausdrücklich ansieht, und nie der Inhalt von Cloud-Platzhaltern.
+//! ausdrücklich ansieht. Den Inhalt von Cloud-Platzhaltern liest die App nur,
+//! wenn der Benutzer „Herunterladen und anzeigen“ gewählt hat (`download`);
+//! Dateien über dem Größenlimit der Vorschau werden vorher abgelehnt.
 
 use std::fs::File;
 use std::io::Read;
@@ -50,14 +52,21 @@ fn stat(path: &ValidPath) -> Result<Stat, CoreError> {
     })
 }
 
-/// Liest höchstens `limit` Bytes. Cloud-Platzhalter und Ordner werden vorher abgelehnt.
-fn read_limited(path: &ValidPath, limit: u64) -> Result<(Vec<u8>, u64), CoreError> {
+/// Liest höchstens `limit` Bytes. Ordner werden vorher abgelehnt, Cloud-Platzhalter
+/// nur mit `download`; zu große Dateien werden abgelehnt, bevor sie geöffnet
+/// (und damit ggf. heruntergeladen) werden.
+fn read_limited(path: &ValidPath, limit: u64, download: bool) -> Result<(Vec<u8>, u64), CoreError> {
     let info = stat(path)?;
     if info.attributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
         return Err(CoreError::NotAFile);
     }
     if is_cloud_placeholder(info.attributes) {
-        return Err(CoreError::CloudOnly);
+        if !download {
+            return Err(CoreError::CloudOnly);
+        }
+        if info.size > limit {
+            return Err(CoreError::TooLarge);
+        }
     }
     let mut buffer = Vec::new();
     File::open(path.to_extended())?
@@ -97,14 +106,14 @@ pub async fn preview_info(path: String) -> Result<PreviewInfo, AppError> {
 
 /// Rohe Bytes für Bild- und PDF-Vorschau (ohne JSON-Umweg).
 #[tauri::command]
-pub async fn preview_bytes(path: String) -> Result<Response, AppError> {
+pub async fn preview_bytes(path: String, download: Option<bool>) -> Result<Response, AppError> {
     let path = validate_path(&path)?;
     blocking(move || {
         let kind = preview::kind_for(path.file_name().unwrap_or_default());
         let Some(limit) = kind.max_bytes().filter(|_| !matches!(kind, Kind::Text)) else {
             return Err(CoreError::Unsupported.into());
         };
-        let (bytes, size) = read_limited(&path, limit)?;
+        let (bytes, size) = read_limited(&path, limit, download.unwrap_or(false))?;
         if size > limit {
             return Err(CoreError::TooLarge.into());
         }
@@ -114,7 +123,7 @@ pub async fn preview_bytes(path: String) -> Result<Response, AppError> {
 }
 
 #[tauri::command]
-pub async fn preview_text(path: String) -> Result<TextContent, AppError> {
+pub async fn preview_text(path: String, download: Option<bool>) -> Result<TextContent, AppError> {
     let path = validate_path(&path)?;
     blocking(move || {
         if !matches!(
@@ -123,7 +132,8 @@ pub async fn preview_text(path: String) -> Result<TextContent, AppError> {
         ) {
             return Err(CoreError::Unsupported.into());
         }
-        let (bytes, size) = read_limited(&path, preview::MAX_TEXT_BYTES)?;
+        let (bytes, size) =
+            read_limited(&path, preview::MAX_TEXT_BYTES, download.unwrap_or(false))?;
         let truncated = size > preview::MAX_TEXT_BYTES;
         let decoded = preview::decode_text(&bytes, truncated).ok_or(CoreError::Unsupported)?;
         Ok(TextContent {

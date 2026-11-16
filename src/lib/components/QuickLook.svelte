@@ -18,13 +18,16 @@
     | { kind: 'text'; text: string; truncated: boolean }
     | { kind: 'pdf'; data: ArrayBuffer }
     | { kind: 'generic'; note?: string }
-    | { kind: 'message'; text: string };
+    | { kind: 'message'; text: string }
+    | { kind: 'cloud' };
 
   const MAX_DOTS = 12;
 
   let view = $state.raw<View>({ kind: 'loading' });
   let pdf = $state<ReturnType<typeof PdfView>>();
   let closeButton = $state<HTMLButtonElement>();
+  /** Pfad, dessen Cloud-Inhalt der Benutzer ausdrücklich herunterladen lassen will. */
+  let downloadPath = $state('');
 
   const pane = $derived(quicklook.pane);
   const entry = $derived(quicklook.entry);
@@ -46,6 +49,8 @@
   $effect(() => {
     const target = path;
     if (!target) return;
+    // Nur nach Klick auf „Herunterladen und anzeigen“ darf der Inhalt geladen werden.
+    const download = downloadPath === target;
     let cancelled = false;
     let blobUrl: string | null = null;
     view = { kind: 'loading' };
@@ -57,19 +62,19 @@
         if (cancelled) return;
         if (info.isDir) {
           view = { kind: 'generic' };
-        } else if (info.cloudOnly) {
-          view = { kind: 'message', text: t('ql.cloud') };
+        } else if (info.cloudOnly && !download) {
+          view = info.tooLarge || info.kind === 'other' ? { kind: 'generic', note: info.tooLarge ? t('ql.tooLarge') : undefined } : { kind: 'cloud' };
         } else if (info.kind === 'image' && !info.tooLarge) {
-          const bytes = await api.previewBytes(target);
+          const bytes = await api.previewBytes(target, download);
           if (cancelled) return;
           blobUrl = URL.createObjectURL(new Blob([bytes], { type: info.mime ?? 'image/png' }));
           view = { kind: 'image', url: blobUrl };
         } else if (info.kind === 'pdf' && !info.tooLarge) {
-          const data = await api.previewBytes(target);
+          const data = await api.previewBytes(target, download);
           if (cancelled) return;
           view = { kind: 'pdf', data };
         } else if (info.kind === 'text') {
-          const text = await api.previewText(target);
+          const text = await api.previewText(target, download);
           if (cancelled) return;
           view = { kind: 'text', text: text.text, truncated: text.truncated };
         } else {
@@ -181,6 +186,12 @@
           <PdfView bind:this={pdf} data={view.data} onerror={() => (view = { kind: 'message', text: t('ql.pdfFailed') })} />
         {:else if view.kind === 'message'}
           <p class="note">{view.text}</p>
+        {:else if view.kind === 'cloud'}
+          <div class="cloudbox">
+            <p class="note">{t('ql.cloud')}</p>
+            <button class="btn pri" onclick={() => (downloadPath = path)}>{t('ql.download')}</button>
+            <p class="note small">{t('ql.downloadHint')}</p>
+          </div>
         {:else}
           <div class="generic">
             <div class="art">
@@ -330,6 +341,19 @@
   }
 
   .cut,
+  .cloudbox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .note.small {
+    font-size: 12px;
+  }
+
   .note {
     margin: 0;
     font-size: 12.5px;

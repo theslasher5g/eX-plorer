@@ -58,7 +58,12 @@ fn cloud_sync_state(data: &WIN32_FIND_DATAW, attributes: u32) -> Option<SyncStat
         unsafe { CfGetPlaceholderStateFromFindData((data as *const WIN32_FIND_DATAW).cast()) };
     let in_sync = (state != CF_PLACEHOLDER_STATE_INVALID)
         .then_some(state.0 & CF_PLACEHOLDER_STATE_IN_SYNC.0 != 0);
-    sync_state(attributes, data.dwReserved0, in_sync)
+    sync_state(
+        attributes,
+        data.dwReserved0,
+        in_sync,
+        attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0,
+    )
 }
 
 fn to_entry(data: &WIN32_FIND_DATAW) -> Option<Entry> {

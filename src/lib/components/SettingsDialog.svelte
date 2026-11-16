@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { X } from '@lucide/svelte';
-  import type { Settings, StartView, Theme } from '../api';
+  import { getApi, type OneDriveFinding, type Settings, type StartView, type Theme } from '../api';
   import { formatCount } from '../format';
   import { t, type MessageKey } from '../i18n';
   import { onedrive } from '../stores/onedrive.svelte';
@@ -40,6 +40,39 @@
   };
 
   const section = $derived(settings.dialog);
+
+  // OneDrive: Erkennung und manuell hinzugefügte Ordner.
+  let findings = $state.raw<OneDriveFinding[]>([]);
+  let manualPath = $state('');
+  let manualError = $state(false);
+
+  async function loadFindings() {
+    try {
+      findings = await (await getApi()).onedriveDiagnose();
+    } catch {
+      findings = [];
+    }
+  }
+
+  $effect(() => {
+    if (section !== 'onedrive') return;
+    void onedrive.accounts;
+    void loadFindings();
+  });
+
+  async function addManual() {
+    const path = manualPath.trim();
+    if (!path) return;
+    manualError = false;
+    await settings.addOneDrive(path);
+    await loadFindings();
+    const added = findings.find((f) => f.source === 'Manuell' && f.folder.toLowerCase() === path.replace(/^"(.*)"$/, '$1').toLowerCase());
+    // Ungültige Pfade verwirft das Backend beim Speichern; gültige, aber fehlende Ordner meldet die Erkennung.
+    manualError = !added || added.outcome === 'missing' || added.outcome === 'invalid';
+    if (!manualError) manualPath = '';
+    // Einen Ordner, den es nicht gibt, nicht in der Liste behalten.
+    else if (added) await settings.removeOneDrive(added.folder);
+  }
   // Während des Ziehens zeigt der Regler den Entwurf; übernommen wird beim Loslassen.
   let draft = $state<Partial<Settings>>({});
   let card = $state<HTMLDivElement>();
@@ -91,6 +124,16 @@
     }
   }
 </script>
+
+<!-- Geht der Fokus verloren (z. B. wenn der angeklickte Knopf verschwindet), soll Esc den Dialog trotzdem schließen. -->
+<svelte:window
+  onkeydown={(event) => {
+    if (!section || event.key !== 'Escape' || card?.contains(event.target as Node)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    settings.close();
+  }}
+/>
 
 {#snippet toggle(key: 'showExtensions' | 'showHidden' | 'showSyncStatus', label: MessageKey, hint: MessageKey)}
   <div class="srow">
@@ -175,6 +218,52 @@
                 {/if}
               </div>
             </div>
+            <div class="srow">
+              <div class="lbl">
+                <b>{t('settings.odAddTitle')}</b>
+                <span>{t('settings.odAddHint')}</span>
+                <div class="addrow">
+                  <input
+                    class="field"
+                    type="text"
+                    spellcheck="false"
+                    autocomplete="off"
+                    placeholder={t('settings.odAddPlaceholder')}
+                    aria-label={t('settings.odAddTitle')}
+                    bind:value={manualPath}
+                    onkeydown={(event) => event.key === 'Enter' && void addManual()}
+                  />
+                  <button class="btn" onclick={addManual}>{t('settings.odAddButton')}</button>
+                </div>
+                {#if manualError}<p class="err" role="alert">{t('settings.odNotFound')}</p>{/if}
+                {#if settings.value.extraOnedrive.length > 0}
+                  <ul class="accounts">
+                    {#each settings.value.extraOnedrive as folder (folder)}
+                      <li class="manual">
+                        <span class="path">{folder}</span>
+                        <button
+                          class="btn ghost"
+                          aria-label={t('settings.odRemove', { name: folder })}
+                          onclick={() => settings.removeOneDrive(folder)}>×</button
+                        >
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            </div>
+            <details class="detect">
+              <summary>{t('settings.odDetect')}</summary>
+              <p class="note">{t('settings.odDetectHint')}</p>
+              <ul class="accounts">
+                {#each findings as finding, index (index)}
+                  <li>
+                    <b>{finding.source}</b> <span class="out {finding.outcome}">{t(`settings.odOutcome.${finding.outcome}`)}</span>
+                    <span class="path">{finding.folder}</span>
+                  </li>
+                {/each}
+              </ul>
+            </details>
             <p class="note">{t('settings.odNote')}</p>
           {:else if section === 'network'}
             <p class="note">{t('settings.netNote')}</p>
@@ -389,6 +478,72 @@
     display: block;
     font-family: var(--mono, ui-monospace, monospace);
     font-size: 11.5px;
+  }
+
+  .addrow {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .field {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+  }
+
+  .field:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .err {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    color: var(--warn, #b4540a);
+  }
+
+  .manual {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .manual .path {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .detect {
+    margin-top: 12px;
+    font-size: 13px;
+  }
+
+  .detect summary {
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  .out {
+    margin-left: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .out.accepted {
+    color: var(--accent);
+  }
+
+  .out.missing,
+  .out.invalid {
+    color: var(--warn, #b4540a);
   }
 
   .note {

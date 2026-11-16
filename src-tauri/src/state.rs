@@ -29,11 +29,26 @@ pub struct AppState {
     pub net: explorer_core::timeout::Guard,
     /// Zeitlimit für Ordner im Netzwerk in Sekunden (aus den Einstellungen).
     pub net_timeout_secs: AtomicU32,
+    /// Manuell hinzugefügte OneDrive-Ordner (aus den Einstellungen).
+    pub extra_onedrive: Mutex<Vec<String>>,
 }
 
 impl AppState {
     fn secs(&self) -> u64 {
         u64::from(self.net_timeout_secs.load(Ordering::Relaxed))
+    }
+
+    pub fn set_extra_onedrive(&self, folders: Vec<String>) {
+        if let Ok(mut extra) = self.extra_onedrive.lock() {
+            *extra = folders;
+        }
+    }
+
+    pub fn extra_onedrive(&self) -> Vec<String> {
+        self.extra_onedrive
+            .lock()
+            .map(|extra| extra.clone())
+            .unwrap_or_default()
     }
 
     pub fn set_net_timeout(&self, secs: u32) {

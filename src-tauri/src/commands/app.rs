@@ -29,6 +29,7 @@ pub fn app_info(state: State<'_, AppState>) -> AppInfo {
 }
 
 #[tauri::command]
-pub async fn sidebar() -> Result<Sidebar, AppError> {
-    blocking(|| Ok(places::sidebar())).await
+pub async fn sidebar(state: State<'_, AppState>) -> Result<Sidebar, AppError> {
+    let extra = state.extra_onedrive();
+    blocking(move || Ok(places::sidebar(&extra))).await
 }

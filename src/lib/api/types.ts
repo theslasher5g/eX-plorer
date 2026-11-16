@@ -150,6 +150,13 @@ export type Theme = 'auto' | 'light' | 'dark';
 /** Ansicht, mit der neue Tabs beginnen. */
 export type StartView = 'list' | 'grid' | 'columns';
 
+/** Ein Fund der OneDrive-Erkennung und was daraus wurde. */
+export interface OneDriveFinding {
+  source: string;
+  folder: string;
+  outcome: 'accepted' | 'duplicate' | 'invalid' | 'missing' | 'root';
+}
+
 export interface Settings {
   theme: Theme;
   /** Dateiendungen hinter dem Namen zeigen. */
@@ -170,6 +177,8 @@ export interface Settings {
   servers: string[];
   /** An die Seitenleiste angeheftete Ordner. */
   favorites: string[];
+  /** Von Hand hinzugefügte OneDrive-Ordner. */
+  extraOnedrive: string[];
 }
 
 export interface TreeEntry {
@@ -288,8 +297,11 @@ export interface Api {
   onDirChanged(handler: (path: string) => void): Promise<() => void>;
   onDragDrop(handler: (event: DragDropEvent) => void): Promise<() => void>;
   previewInfo(path: string): Promise<PreviewInfo>;
-  previewBytes(path: string): Promise<ArrayBuffer>;
-  previewText(path: string): Promise<TextContent>;
+  /** `download`: den Inhalt einer Cloud-Datei ausdrücklich laden (nur nach Klick des Benutzers). */
+  previewBytes(path: string, download?: boolean): Promise<ArrayBuffer>;
+  previewText(path: string, download?: boolean): Promise<TextContent>;
+  /** Was die Erkennung der OneDrive-Konten gefunden hat. */
+  onedriveDiagnose(): Promise<OneDriveFinding[]>;
   /**
    * Baut das Windows-Kontextmenü auf und liefert seine Einträge; die Oberfläche
    * zeigt es selbst. Es ist immer höchstens eine Sitzung offen.

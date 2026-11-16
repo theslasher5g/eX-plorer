@@ -20,17 +20,26 @@ class OneDrive {
     });
   }
 
+  /** Lädt die Seitenleiste (und damit die Konten) neu; setzt `App.svelte`. */
+  reloadHook: (() => Promise<void>) | null = null;
+
+  async reload(): Promise<void> {
+    await this.reloadHook?.();
+  }
+
   /**
    * Sync-Zustand eines Eintrags. Das Backend meldet ihn für Cloud-Platzhalter.
-   * Eine normale Datei im OneDrive-Ordner ist noch nicht hochgeladen und gilt
-   * als „wird synchronisiert“; versteckte und Systemdateien (desktop.ini)
-   * bleiben ohne Status.
+   * Eine normale Datei im OneDrive-Ordner (kein Platzhalter, z. B. bei
+   * ausgeschaltetem „Dateien bei Bedarf“) liegt vollständig auf dem Gerät und
+   * gilt als „auf diesem Gerät“; „wird synchronisiert“ meldet nur Windows
+   * selbst. Ordner sowie versteckte und Systemdateien (desktop.ini) bleiben
+   * ohne Status.
    */
   stateOf(entry: Entry, dir: string): SyncState | null {
     if (!settings.value.showSyncStatus) return null;
     if (entry.sync) return entry.sync;
     if (entry.isDir || entry.hidden || entry.system) return null;
-    return this.contains(dir) ? 'syncing' : null;
+    return this.contains(dir) ? 'local' : null;
   }
 }
 
