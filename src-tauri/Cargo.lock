@@ -749,7 +749,7 @@ dependencies = [
 
 [[package]]
 name = "ex-plorer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "explorer-core",
  "serde",
@@ -764,7 +764,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "notify",
  "png",

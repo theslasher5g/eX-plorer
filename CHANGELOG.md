@@ -7,6 +7,8 @@ versions may still change things.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-16
+
 ### Fixed
 
 - OneDrive: files that are not cloud placeholders no longer show "Syncing"; they show
@@ -68,5 +70,6 @@ First public release.
   on real machines. Details in the [manual](docs/MANUAL.md#known-limitations).
 - The interface is German only for now.
 
-[Unreleased]: https://github.com/theslasher5g/eX-plorer/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/theslasher5g/eX-plorer/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/theslasher5g/eX-plorer/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/theslasher5g/eX-plorer/releases/tag/v0.1.0
